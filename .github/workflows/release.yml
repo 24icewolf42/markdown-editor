@@ -72,6 +72,9 @@ jobs:
           work="$HOME/flathub-lint"
           rm -rf "$work" && mkdir -p "$work" && cp -r packaging data "$work"/
           cd "$work"
+          # Screenshot URLs name the release tag; before it exists, check the
+          # same files at this commit.
+          case "$GITHUB_REF" in refs/tags/*) ;; *) sed -i "s|/markdown-editor/v[0-9.]*/docs/|/markdown-editor/$GITHUB_SHA/docs/|" data/*.metainfo.xml ;; esac
           lint() { flatpak run --filesystem="$work" --command=flatpak-builder-lint org.flatpak.Builder "$@"; }
           lint manifest packaging/flatpak/io.github._24icewolf42.markdown-editor.yml
           lint appstream data/io.github._24icewolf42.markdown-editor.metainfo.xml
