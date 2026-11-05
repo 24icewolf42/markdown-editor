@@ -132,6 +132,12 @@ Releases are built by `.github/workflows/release.yml`: every push builds both ar
 tests; pushing a tag `vX.Y.Z` that matches `markdown_editor.VERSION` and has a `<release>` entry
 in the AppStream metainfo publishes them. Locally: `make appimage`, `make flatpak`.
 
+The Flatpak rebuilds the preview bundle from `web-src/` with Node.js, offline, from the npm
+packages pinned in `packaging/flatpak/node-sources.json` (`make flatpak-node-sources` regenerates
+it after a lockfile change; CI fails when it is stale). CI builds a git-based form of the manifest —
+the pushed commit instead of the checkout — and runs Flathub's linter on it; `make flathub` writes
+that manifest for the current commit to `dist/flathub/`.
+
 ## Requirements
 
 On Fedora, these packages are installed by default on Workstation:

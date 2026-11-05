@@ -1,9 +1,18 @@
-# Self-contained build on the GNOME runtime.
+# Self-contained build on the GNOME runtime. The preview bundle is rebuilt
+# from web-src/ with Node.js, offline, from the npm packages listed in
+# node-sources.json (regenerate it with `make flatpak-node-sources` after
+# changing web-src/package-lock.json).
+#
 #   flatpak-builder --user --install --force-clean build/flatpak packaging/flatpak/io.github._24icewolf42.markdown-editor.yml
+#
+# packaging/flathub/generate.py turns this manifest into a git-based one,
+# which builds a pushed commit instead of the local checkout.
 id: io.github._24icewolf42.markdown-editor
 runtime: org.gnome.Platform
 runtime-version: '51'
 sdk: org.gnome.Sdk
+sdk-extensions:
+  - org.freedesktop.Sdk.Extension.node24
 command: markdown-editor
 finish-args:
   - --device=dri
@@ -39,12 +48,26 @@ modules:
       - type: archive
         url: https://download.gnome.org/sources/libspelling/0.4/libspelling-0.4.10.tar.xz
         sha256: 56e3f01a3a18b575beea4c34349f99cdaba316e1f7c271b1231f7bcf5d9af73b
+        x-checker-data:
+          type: gnome
+          name: libspelling
 
   - name: markdown-editor
     buildsystem: simple
+    build-options:
+      append-path: /usr/lib/sdk/node24/bin
+      env:
+        npm_config_cache: /run/build/markdown-editor/flatpak-node/npm-cache
+        npm_config_offline: 'true'
+        XDG_CACHE_HOME: /run/build/markdown-editor/flatpak-node/cache
+        ESBUILD_BINARY_PATH: /run/build/markdown-editor/flatpak-node/cache/esbuild/bin/esbuild-current
     build-commands:
+      - cd web-src && npm ci --ignore-scripts --legacy-peer-deps --no-audit --no-fund
+      - cd web-src && node build.mjs
       - make install PREFIX=/app UPDATE_CACHES=0
+      - install -Dm644 LICENSE /app/share/licenses/$FLATPAK_ID/LICENSE
     sources:
+      # BEGIN app-source
       - type: dir
         path: ../..
         skip:
@@ -57,3 +80,5 @@ modules:
           - web-src/node_modules
           - local.mk
           - NOTES.local.md
+      # END app-source
+      - node-sources.json

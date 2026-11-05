@@ -8,7 +8,7 @@ UPDATE_CACHES ?= 1
 -include local.mk
 SMOKE_BIG ?=
 
-.PHONY: run test test-unit test-render test-gui test-corpus vendor install uninstall uninstall-legacy appimage flatpak
+.PHONY: run test test-unit test-render test-gui test-corpus vendor install uninstall uninstall-legacy appimage flatpak flatpak-node-sources flathub
 
 run:
 	./bin/markdown-editor
@@ -77,3 +77,14 @@ flatpak:
 	flatpak-builder --user --force-clean --repo=build/flatpak-repo build/flatpak packaging/flatpak/$(APP_ID).yml
 	mkdir -p dist
 	flatpak build-bundle build/flatpak-repo dist/markdown-editor-$(VERSION)-x86_64.flatpak $(APP_ID)
+
+# Offline npm sources for the Flatpak build of the preview bundle; run after
+# changing web-src/package-lock.json (needs uv and network).
+flatpak-node-sources:
+	cd web-src && uvx --from "git+https://github.com/flatpak/flatpak-builder-tools.git#subdirectory=node" \
+	  flatpak-node-generator npm package-lock.json -o ../packaging/flatpak/node-sources.json
+
+# Git-based Flatpak manifest for the current commit (pushed, ideally tagged).
+flathub:
+	packaging/flathub/generate.py dist/flathub --commit $$(git rev-parse HEAD) \
+	  $$(git describe --exact-match --tags HEAD 2>/dev/null | sed 's/^/--tag /')

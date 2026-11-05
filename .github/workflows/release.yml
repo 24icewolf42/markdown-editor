@@ -22,6 +22,8 @@ jobs:
           node-version: 22
       - name: Unit tests
         run: python3 -m unittest discover tests -v
+      - name: Flatpak npm sources match the lockfile
+        run: python3 packaging/flatpak/check-node-sources.py
       - name: Preview rendering tests
         run: |
           cd web-src
@@ -64,25 +66,38 @@ jobs:
       - name: Bundle name
         id: name
         run: echo "bundle=markdown-editor-$(sed -n 's/^VERSION = "\(.*\)"$/\1/p' markdown_editor/__init__.py)-x86_64.flatpak" >> "$GITHUB_OUTPUT"
+      - name: Git-based manifest for this commit
+        run: |
+          command -v python3 >/dev/null || dnf install -y python3
+          tag=""
+          case "$GITHUB_REF" in refs/tags/*) tag="--tag $GITHUB_REF_NAME" ;; esac
+          python3 packaging/flathub/generate.py build/flathub --commit "$GITHUB_SHA" $tag
+          cat build/flathub/io.github._24icewolf42.markdown-editor.yml
       - name: Flathub lint (manifest and AppStream metadata)
         run: |
           flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
           flatpak install --user -y --noninteractive flathub org.flatpak.Builder
           # The linter's sandbox cannot write to the checkout: lint a copy.
           work="$HOME/flathub-lint"
-          rm -rf "$work" && mkdir -p "$work" && cp -r packaging data "$work"/
+          rm -rf "$work" && mkdir -p "$work" && cp -r build/flathub data "$work"/
           cd "$work"
           # Screenshot URLs name the release tag; before it exists, check the
           # same files at this commit.
           case "$GITHUB_REF" in refs/tags/*) ;; *) sed -i "s|/markdown-editor/v[0-9.]*/docs/|/markdown-editor/$GITHUB_SHA/docs/|" data/*.metainfo.xml ;; esac
           lint() { flatpak run --filesystem="$work" --command=flatpak-builder-lint org.flatpak.Builder "$@"; }
-          lint manifest packaging/flatpak/io.github._24icewolf42.markdown-editor.yml
+          lint manifest flathub/io.github._24icewolf42.markdown-editor.yml
           lint appstream data/io.github._24icewolf42.markdown-editor.metainfo.xml
+      # Builds the pushed commit as Flathub's builders would, Node.js bundle included.
       - uses: flathub-infra/flatpak-github-actions/flatpak-builder@master
         with:
           bundle: ${{ steps.name.outputs.bundle }}
-          manifest-path: packaging/flatpak/io.github._24icewolf42.markdown-editor.yml
-          cache-key: flatpak-builder-${{ hashFiles('packaging/flatpak/*.yml') }}
+          manifest-path: build/flathub/io.github._24icewolf42.markdown-editor.yml
+          cache-key: flatpak-builder-${{ hashFiles('packaging/flatpak/*') }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: flatpak-git-manifest
+          path: build/flathub/
+          if-no-files-found: error
 
   release:
     if: startsWith(github.ref, 'refs/tags/v')
