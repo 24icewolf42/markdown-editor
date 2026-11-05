@@ -14,12 +14,18 @@
       <li>Synchronized scrolling, HTML export and printing</li>
     </ul>
   </description>
+  <url type="homepage">https://github.com/24icewolf42/gnome-markdown-editor</url>
   <launchable type="desktop-id">io.github.gnome_markdown_editor.desktop</launchable>
   <developer id="io.github.gnome_markdown_editor">
     <name>Andreas</name>
   </developer>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.2.0" date="2026-11-05">
+      <description>
+        <p>Large documents edit and scroll smoothly; changelog sections are folded by default.</p>
+      </description>
+    </release>
     <release version="0.1.0" date="2026-11-05"/>
   </releases>
 </component>
