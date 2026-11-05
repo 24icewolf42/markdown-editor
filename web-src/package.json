@@ -1,0 +1,32 @@
+{
+  "name": "gnome-markdown-editor-preview",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Preview renderer bundle for gnome-markdown-editor (built into ../gnome_markdown_editor/web/vendor)",
+  "scripts": {
+    "build": "node build.mjs"
+  },
+  "devDependencies": {
+    "dompurify": "^3.4.17",
+    "esbuild": "^0.28.2",
+    "github-slugger": "^2.0.0",
+    "highlight.js": "^11.12.0",
+    "js-yaml": "^5.5.0",
+    "jsdom": "^29.1.1",
+    "katex": "^0.19.1",
+    "markdown-it": "^14.3.3",
+    "markdown-it-abbr": "^2.0.0",
+    "markdown-it-attrs": "^5.0.1",
+    "markdown-it-deflist": "^4.0.0",
+    "markdown-it-dollarmath": "^0.5.0",
+    "markdown-it-footnote": "^4.0.0",
+    "markdown-it-front-matter": "^0.2.4",
+    "markdown-it-github-alerts": "^1.0.1",
+    "markdown-it-ins": "^4.0.0",
+    "markdown-it-mark": "^4.0.0",
+    "markdown-it-sub": "^2.0.0",
+    "markdown-it-sup": "^2.0.0",
+    "mermaid": "^12.3.0",
+    "morphdom": "^2.7.8"
+  }
+}

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.gnome_markdown_editor</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+  <name>Markdown Editor</name>
+  <summary>Edit and preview Markdown documents</summary>
+  <description>
+    <p>A Markdown editor and viewer for GNOME, modelled on GNOME Text Editor, with a live preview.</p>
+    <ul>
+      <li>Tabs, find and replace, outline, spell checking, file change detection</li>
+      <li>GitHub alerts, task lists, footnotes, tables, front matter</li>
+      <li>Mermaid diagrams, KaTeX math, syntax highlighting, image carousels</li>
+      <li>Synchronized scrolling, HTML export and printing</li>
+    </ul>
+  </description>
+  <launchable type="desktop-id">io.github.gnome_markdown_editor.desktop</launchable>
+  <developer id="io.github.gnome_markdown_editor">
+    <name>Andreas</name>
+  </developer>
+  <content_rating type="oars-1.1"/>
+  <releases>
+    <release version="0.1.0" date="2026-11-05"/>
+  </releases>
+</component>

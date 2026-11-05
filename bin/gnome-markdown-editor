@@ -1,0 +1,12 @@
+#!/usr/bin/env python3
+"""Launcher: runs from a source checkout, or from the installed copy."""
+import os
+import sys
+
+APPDIR = "@APPDIR@"  # replaced by `make install`
+root = os.path.dirname(os.path.dirname(os.path.realpath(__file__))) if APPDIR.startswith("@") else APPDIR
+sys.path.insert(0, root)
+
+from gnome_markdown_editor.application import main  # noqa: E402
+
+sys.exit(main())
