@@ -3,7 +3,7 @@
 import { JSDOM } from "jsdom";
 import { readFileSync } from "node:fs";
 
-const bundle = readFileSync(new URL("../gnome_markdown_editor/web/vendor/renderer.js", import.meta.url), "utf8");
+const bundle = readFileSync(new URL("../markdown_editor/web/vendor/renderer.js", import.meta.url), "utf8");
 const dom = new JSDOM(`<!doctype html><body><div id="content"></div>`, { runScripts: "outside-only" });
 dom.window.eval(bundle);
 const { GME, document } = dom.window;
@@ -89,6 +89,39 @@ check("dated 'Changes' list folds", fold("## Changes\n\n- **v1.2** fix\n- **v1.1
 check("plain 'Changes' list does not fold", fold("## Changes\n\n- rename x\n- remove y\n") === 0);
 check("'Supported Versions' table does not fold", fold("## Supported Versions\n\n| Version | Supported |\n| - | - |\n| 5.1.x | yes |\n| 5.0.x | no |\n") === 0);
 check("prose after changelog stays outside", (GME.render("## Changelog\n\n- a\n\nProse.\n"), document.querySelector("details.changelog").textContent.includes("Prose")) === false);
+
+// Marp decks (the deck bundle is loaded the way the preview loads it).
+dom.window.eval(readFileSync(new URL("../markdown_editor/web/vendor/marp.js", import.meta.url), "utf8"));
+const deckSrc = "---\nmarp: true\ntheme: gaia\npaginate: true\n---\n\n# One\n\n$x^2$ and `code`\n\n---\n\n<!-- _class: lead -->\n## Two\n\n```js\nconst a = 1;\n```\n\n<script>alert(1)</script>\n<img src=x onerror=alert(1)>\n\n---\n\n### Three [first](#1)\n";
+GME.render(deckSrc);
+const deckEl = document.querySelector("#content > .marp-deck");
+const shadow = deckEl && deckEl.shadowRoot;
+const slides = shadow ? [...shadow.querySelectorAll("svg[data-marpit-svg]")] : [];
+check("marp deck renders in a shadow root", slides.length === 3, `${slides.length} slides`);
+check("marp slides carry source lines", slides.map((s) => s.getAttribute("data-line")).join(",") === "0,10,22", slides.map((s) => s.getAttribute("data-line")).join(","));
+check("marp slide content inside foreignObject", !!shadow && !!shadow.querySelector("svg > foreignObject > section h1"));
+check("marp theme css is scoped", !!shadow && /div\.marpit\s*>\s*svg\s*>\s*foreignObject\s*>\s*section/.test(shadow.querySelector(".deck-theme").textContent));
+check("marp lead class applied", !!shadow && !!shadow.querySelector("section.lead"));
+check("marp math via katex", !!shadow && !!shadow.querySelector(".katex"));
+check("marp code highlighted", !!shadow && !!shadow.querySelector("pre code .hljs-keyword"));
+check("marp output sanitised", !!shadow && !shadow.querySelector("script") && ![...shadow.querySelectorAll("img")].some((i) => i.hasAttribute("onerror")));
+const firstSlide = slides[0];
+GME.render(deckSrc.replace("### Three", "### Three!"));
+const slides2 = [...shadow.querySelectorAll("svg[data-marpit-svg]")];
+check("unchanged marp slides keep their DOM", slides2[0] === firstSlide && slides2.length === 3);
+check("marp export keeps a declarative shadow root", /<template shadowrootmode="open">[\s\S]*data-marpit-svg/.test(GME.exportHtml({})));
+GME.setMarpThemes(["/* @theme custom */\n@import 'default';\nsection { background: rgb(1, 2, 3); }"]);
+GME.render(deckSrc.replace("theme: gaia", "theme: custom"));
+check("custom marp theme from the host", /rgb\(1, 2, 3\)/.test(shadow.querySelector(".deck-theme").textContent));
+GME.setMarpThemes([]);
+GME.render(deckSrc.replace("theme: gaia", "math: mathjax"));
+GME.render(deckSrc.replace("theme: gaia", "math: mathjax") + "\n```yaml\nmath: mathjax\n```\n");
+check("code keeps 'math: mathjax'", shadow.querySelector(".deck-body").textContent.includes("math: mathjax"));
+check("math: mathjax decks render with KaTeX", !shadow.querySelector(".render-error") && !!shadow.querySelector(".katex"));
+GME.render("---\nmarp: false\n---\n\n# Plain\n\n---\n\ntext\n");
+check("marp: false renders as Markdown", !document.querySelector("#content > .marp-deck") && !!document.querySelector("#content h1"));
+GME.render(deckSrc);
+check("switching back renders the deck", !!document.querySelector("#content > .marp-deck"));
 
 console.log(failed ? `${failed} failed` : "all passed");
 process.exit(failed ? 1 : 0);

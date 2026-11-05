@@ -29,8 +29,8 @@ gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
 from gi.repository import Gio, GLib  # noqa: E402
 
-from gnome_markdown_editor import markdown_utils as mu  # noqa: E402
-from gnome_markdown_editor.application import Application  # noqa: E402
+from markdown_editor import markdown_utils as mu  # noqa: E402
+from markdown_editor.application import Application  # noqa: E402
 
 path = Path(sys.argv[1])
 text = path.read_text(encoding="utf-8")

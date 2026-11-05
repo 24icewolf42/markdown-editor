@@ -85,6 +85,8 @@ class Application(Adw.Application):
     def do_startup(self) -> None:
         Adw.Application.do_startup(self)
         GtkSource.init()
+        # Before any language is looked up: the manager loads its list once.
+        GtkSource.LanguageManager.get_default().append_search_path(str(DATA_DIR / "language-specs"))
         display = Gdk.Display.get_default()
         icons = Gtk.IconTheme.get_for_display(display)
         icons.add_search_path(str(DATA_DIR / "icons"))
@@ -257,8 +259,10 @@ class Application(Adw.Application):
         about = Adw.AboutDialog(
             application_name=_("Markdown Editor"),
             application_icon=APP_ID,
-            developer_name="Andreas",
+            developer_name="Andreas Landgraf",
             version=VERSION,
+            website="https://github.com/24icewolf42/markdown-editor",
+            issue_url="https://github.com/24icewolf42/markdown-editor/issues",
             comments=_(
                 "Edit and preview Markdown with GitHub, Hugo and Antigravity extensions: alerts, Mermaid diagrams, "
                 "math, footnotes, task lists, front matter and image carousels."

@@ -1,6 +1,6 @@
 """Persistent application settings.
 
-Stored as JSON in ``$XDG_CONFIG_HOME/gnome-markdown-editor/settings.json`` so
+Stored as JSON in ``$XDG_CONFIG_HOME/markdown-editor/settings.json`` so
 the editor runs straight from a source checkout without installing and
 compiling a GSettings schema. Every key is a GObject property, so widgets can
 bind to it and code can listen to ``notify::<key>``.
@@ -14,8 +14,10 @@ from pathlib import Path
 
 from gi.repository import GLib, GObject
 
-CONFIG_DIR = Path(GLib.get_user_config_dir()) / "gnome-markdown-editor"
+CONFIG_DIR = Path(GLib.get_user_config_dir()) / "markdown-editor"
 CONFIG_FILE = CONFIG_DIR / "settings.json"
+# Releases before 0.4.0 stored the settings under the old project name.
+LEGACY_CONFIG_FILE = Path(GLib.get_user_config_dir()) / "gnome-markdown-editor" / "settings.json"
 
 # key: (GObject type, default)
 SCHEMA: dict[str, tuple[type, object]] = {
@@ -71,9 +73,12 @@ class _SettingsBase(GObject.Object):
         self._loading = True
         self._save_source = 0
         data: dict = {}
+        source = CONFIG_FILE if CONFIG_FILE.exists() or not LEGACY_CONFIG_FILE.exists() else LEGACY_CONFIG_FILE
         try:
-            data = json.loads(CONFIG_FILE.read_text(encoding="utf-8"))
+            data = json.loads(source.read_text(encoding="utf-8"))
         except (OSError, ValueError):
+            data = {}
+        if not isinstance(data, dict):
             data = {}
         for key, (typ, default) in SCHEMA.items():
             value = data.get(key, default)
@@ -109,7 +114,7 @@ class _SettingsBase(GObject.Object):
             tmp.write_text(json.dumps(data, indent=2), encoding="utf-8")
             os.replace(tmp, CONFIG_FILE)
         except OSError as exc:  # pragma: no cover - reported, not fatal
-            print(f"gnome-markdown-editor: could not save settings: {exc}")
+            print(f"markdown-editor: could not save settings: {exc}")
 
     def flush(self) -> None:
         if self._save_source:

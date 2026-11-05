@@ -27,6 +27,44 @@ _untitled_counter = 0
 DEBUG = bool(os.environ.get("GME_DEBUG"))
 
 
+# path -> (mtime_ns, size, theme name, CSS with absolute URLs)
+_THEME_FILES: dict[Path, tuple[int, int, str | None, str]] = {}
+
+
+def _theme_sheet(path: Path) -> tuple[str | None, str]:
+    """A stylesheet's declared Marp theme name and CSS, re-read only when it changed."""
+    st = path.stat()
+    cached = _THEME_FILES.get(path)
+    if cached and cached[0] == st.st_mtime_ns and cached[1] == st.st_size:
+        return cached[2], cached[3]
+    if st.st_size > 1_000_000:
+        name, css = None, ""
+    else:
+        css = path.read_text(encoding="utf-8", errors="replace")
+        name = mu.css_theme_name(css)
+        css = mu.absolute_css_urls(css, path.parent.as_uri()) if name else ""
+    _THEME_FILES[path] = (st.st_mtime_ns, st.st_size, name, css)
+    return name, css
+
+
+_THEME_DIRS = ("", "assets", "themes", "theme", ".marp", "assets/themes", "assets/css", "css")
+
+
+def _theme_candidates(start: Path):
+    """CSS files where a Marp deck's custom theme may live, nearest first."""
+    folder = start
+    for _depth in range(6):
+        for sub in _THEME_DIRS:
+            d = folder / sub if sub else folder
+            try:
+                yield from sorted(p for p in d.iterdir() if p.suffix == ".css" and p.is_file())
+            except OSError:
+                pass
+        if (folder / ".git").exists() or folder.parent == folder:
+            break
+        folder = folder.parent
+
+
 def resolve_style_scheme(scheme_id: str) -> GtkSource.StyleScheme | None:
     manager = GtkSource.StyleSchemeManager.get_default()
     dark = Adw.StyleManager.get_default().get_dark()
@@ -91,8 +129,8 @@ class DocumentPage(Gtk.Box):
         # Source buffer -------------------------------------------------
         self.source_file = GtkSource.File()
         self.buffer = GtkSource.Buffer()
-        lang = GtkSource.LanguageManager.get_default().get_language("markdown")
-        self.buffer.set_language(lang)
+        self._marp = False
+        self.buffer.set_language(GtkSource.LanguageManager.get_default().get_language("markdown"))
         self.buffer.set_highlight_syntax(True)
         self.buffer.set_implicit_trailing_newline(True)
         self.buffer.connect("changed", self._on_changed)
@@ -507,12 +545,71 @@ class DocumentPage(Gtk.Box):
 
     def _on_changed(self, _buf) -> None:
         self._preview_dirty = True
+        self._update_language()
         if self.preview_area.get_visible():
             self._schedule_render()
         if self._outline_source:
             GLib.source_remove(self._outline_source)
         # Outline and word count scan the whole text: wait longer on big files.
         self._outline_source = GLib.timeout_add(350 + self.buffer.get_char_count() // 8000, self._update_outline)
+
+    def _update_language(self) -> None:
+        """Marp decks (front matter ``marp: true``) get the Marp highlighting."""
+        buf = self.buffer
+        _ok, head_end = buf.get_iter_at_line(200)
+        if head_end.get_line() < 200:
+            head_end = buf.get_end_iter()
+        marp = mu.is_marp(buf.get_text(buf.get_start_iter(), head_end, False))
+        if marp == self._marp:
+            return
+        manager = GtkSource.LanguageManager.get_default()
+        lang = manager.get_language("marp") if marp else None
+        self._marp = marp and lang is not None
+        buf.set_language(lang or manager.get_language("markdown"))
+
+    @property
+    def is_marp(self) -> bool:
+        return self._marp
+
+    def _marp_theme_css(self, text: str) -> list[str]:
+        """A deck's custom theme: the stylesheet declaring ``/* @theme name */``
+        next to the document, in its ``assets``/``themes`` folders, or the same
+        places in the folders above it (up to the repository root)."""
+        name = mu.marp_theme(text) if self._marp else None
+        if not name or name in mu.MARP_BUILTIN_THEMES or self.directory is None:
+            return []
+        # Rendering follows typing: look on disk again only every few seconds.
+        key = (self.directory, name)
+        cached = getattr(self, "_theme_cache", None)
+        if cached and cached[0] == key and time.monotonic() - cached[1] < 3:
+            return cached[2]
+        found = self._find_marp_theme(name)
+        self._theme_cache = (key, time.monotonic(), found)
+        return found
+
+    def _find_marp_theme(self, name: str) -> list[str]:
+        """The theme's stylesheet plus the custom themes it imports, bases first."""
+        sheets: dict[str, str] = {}  # theme name -> CSS, nearest file wins
+        for css_path in _theme_candidates(self.directory):
+            try:
+                theme, css = _theme_sheet(css_path)
+            except OSError:
+                continue
+            if theme and theme not in sheets:
+                sheets[theme] = css
+        found: list[str] = []
+        seen: set[str] = set()
+
+        def add(theme: str) -> None:
+            if theme in seen or theme not in sheets:
+                return
+            seen.add(theme)
+            for base in mu.css_theme_imports(sheets[theme]):
+                add(base)
+            found.append(sheets[theme])
+
+        add(name)
+        return found
 
     def _schedule_render(self, immediate: bool = False) -> None:
         if self._render_source:
@@ -527,7 +624,9 @@ class DocumentPage(Gtk.Box):
         self._render_source = 0
         if self.preview is not None:
             self._preview_dirty = False
-            self.preview.render(self.get_text())
+            text = self.get_text()
+            self.preview.set_marp_themes(self._marp_theme_css(text))
+            self.preview.render(text)
         return GLib.SOURCE_REMOVE
 
     def _update_outline(self) -> bool:

@@ -13,7 +13,7 @@ from urllib.parse import unquote, urlsplit
 from gi.repository import Adw, Gdk, Gio, GLib, GObject, Gtk
 
 from .document import MARKDOWN_SUFFIXES, DocumentPage
-from .preview import VENDOR_DIR, WEB_DIR
+from .preview import VENDOR_DIR, WEB_DIR, katex_cdn_css
 from .settings import Settings
 
 FORMAT_ITEMS = [
@@ -240,7 +240,7 @@ class Window(Adw.ApplicationWindow):
 
         # Empty state -----------------------------------------------------
         empty = Adw.StatusPage(
-            icon_name="io.github.gnome_markdown_editor",
+            icon_name="io.github._24icewolf42.markdown-editor",
             title=_("No Open Documents"),
             description=_("Create a new document or open a Markdown file. You can also drop files here."),
         )
@@ -963,14 +963,6 @@ class Window(Adw.ApplicationWindow):
     def _standalone_html(page: DocumentPage, body: str) -> str:
         css = (WEB_DIR / "preview.css").read_text(encoding="utf-8")
         hl = (VENDOR_DIR / "highlight.css").read_text(encoding="utf-8")
-        katex_version = "0.19.1"
-        try:
-            notices = (VENDOR_DIR / "THIRD-PARTY-NOTICES.txt").read_text(encoding="utf-8")
-            for line in notices.splitlines():
-                if line.startswith("katex "):
-                    katex_version = line.split()[1]
-        except OSError:
-            pass
         theme = "dark" if Adw.StyleManager.get_default().get_dark() else "light"
         title = html.escape(page.props.title)
         return f"""<!doctype html>
@@ -979,7 +971,7 @@ class Window(Adw.ApplicationWindow):
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{title}</title>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@{katex_version}/dist/katex.min.css">
+<link rel="stylesheet" href="{katex_cdn_css()}">
 <style>
 {hl}
 {css}

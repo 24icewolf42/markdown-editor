@@ -29,8 +29,8 @@ args = parser.parse_args()
 tmp = Path(tempfile.mkdtemp(prefix="gme-test-"))
 os.environ["XDG_CONFIG_HOME"] = str(tmp / "config")
 os.environ["XDG_DATA_HOME"] = str(tmp / "data")  # keep test files out of recent documents
-(tmp / "config" / "gnome-markdown-editor").mkdir(parents=True)
-(tmp / "config" / "gnome-markdown-editor" / "settings.json").write_text(
+(tmp / "config" / "markdown-editor").mkdir(parents=True)
+(tmp / "config" / "markdown-editor" / "settings.json").write_text(
     json.dumps({"restore-session": False, "color-scheme": "light", "spellcheck": True})
 )
 docs = tmp / "docs"
@@ -42,8 +42,8 @@ gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
 from gi.repository import Gio, GLib, Gtk  # noqa: E402
 
-from gnome_markdown_editor.application import Application  # noqa: E402
-from gnome_markdown_editor.settings import Settings  # noqa: E402
+from markdown_editor.application import Application  # noqa: E402
+from markdown_editor.settings import Settings  # noqa: E402
 
 results: list[tuple[str, bool, str]] = []
 
@@ -339,6 +339,50 @@ class Driver:
         check("broken mermaid shows error", box["v"] == "1", box["v"])
         broken.buffer.set_modified(False)
         win.tab_view.close_page(win.tab_view.get_page(broken))
+        yield 0.3
+        win.tab_view.set_selected_page(win.tab_view.get_page(page))
+
+        # Marp slide decks ----------------------------------------------------
+        deck = win.open_file(Gio.File.new_for_path(str(docs / "marp.md")))
+        yield lambda: not deck.props.loading and deck.preview is not None and deck.preview._ready
+        check("marp document gets marp highlighting", deck.buffer.get_language().get_id() == "marp")
+        count_js = "(() => { const d = document.querySelector('#content > .marp-deck'); return String(d && d.shadowRoot ? d.shadowRoot.querySelectorAll('svg[data-marpit-svg]').length : 0); })()"
+        state = {}
+
+        for _ in range(40):
+            state["box"] = self.js(deck, count_js)
+            state["pending"] = True
+            yield lambda: "v" in state["box"]
+            if state["box"]["v"] == "3":
+                break
+            yield 0.25
+        check("marp deck renders three slides", state["box"].get("v") == "3", state["box"].get("v", ""))
+        box = self.js(deck, "(() => { const r = document.querySelector('#content > .marp-deck').shadowRoot; const s = r.querySelectorAll('svg[data-marpit-svg]'); return JSON.stringify({lines: [...s].map((x) => x.getAttribute('data-line')), w: Math.round(s[0].getBoundingClientRect().width), sec: Math.round(s[0].querySelector('section').getBoundingClientRect().width), fixed: /scale\\(/.test(s[0].querySelector('section').style.transform), line2: Math.round(GME.lineForTop(s[1].getBoundingClientRect().top + window.scrollY + 1))}); })()")
+        yield lambda: "v" in box
+        info = json.loads(box["v"]) if box["v"].startswith("{") else {}
+        check("marp slides map to source lines", info.get("lines") == ["0", "13", "24"], box["v"])
+        # Either the engine scales <foreignObject> content itself, or Marp's WebKit
+        # polyfill has scaled the slide (WebKit then misreports its rect).
+        check("marp slides scale to the preview width", info.get("w", 0) > 0 and (abs(info.get("sec", 0) - info.get("w", 0)) <= 2 or info.get("fixed")), box["v"])
+        check("scroll sync maps a slide to its line", 13 <= info.get("line2", -1) <= 15, box["v"])
+        self.shot("03b-marp")
+        got = {}
+        deck.preview.get_html(lambda html: got.setdefault("html", html))
+        yield lambda: "html" in got
+        check("marp export keeps the slides", 'shadowrootmode="open"' in (got["html"] or "") and "data-marpit-svg" in got["html"])
+        start = deck.buffer.get_start_iter()
+        _ok, line2 = deck.buffer.get_iter_at_line(1)
+        _ok, line3 = deck.buffer.get_iter_at_line(2)
+        deck.buffer.delete(line2, line3)
+        deck.buffer.insert(deck.buffer.get_iter_at_line(1)[1], "marp: false\n")
+        check("turning marp off restores markdown highlighting", deck.buffer.get_language().get_id() == "markdown")
+        deck._render_now()
+        yield 0.8
+        box = self.js(deck, "String(!document.querySelector('#content > .marp-deck') && !!document.querySelector('#content h1'))")
+        yield lambda: "v" in box
+        check("turning marp off renders plain markdown", box["v"] == "true", box["v"])
+        deck.buffer.set_modified(False)
+        win.tab_view.close_page(win.tab_view.get_page(deck))
         yield 0.3
         win.tab_view.set_selected_page(win.tab_view.get_page(page))
 

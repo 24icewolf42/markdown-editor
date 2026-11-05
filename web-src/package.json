@@ -1,12 +1,13 @@
 {
-  "name": "gnome-markdown-editor-preview",
+  "name": "markdown-editor-preview",
   "private": true,
   "version": "0.3.0",
-  "description": "Preview renderer bundle for gnome-markdown-editor (built into ../gnome_markdown_editor/web/vendor)",
+  "description": "Preview renderer bundle for markdown-editor (built into ../markdown_editor/web/vendor)",
   "scripts": {
     "build": "node build.mjs"
   },
   "devDependencies": {
+    "@marp-team/marp-core": "^4.4.0",
     "dompurify": "^3.4.17",
     "esbuild": "^0.28.2",
     "github-slugger": "^2.0.0",

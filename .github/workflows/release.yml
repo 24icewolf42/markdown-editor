@@ -1,5 +1,5 @@
 # Builds the AppImage and the Flatpak bundle on every push; a pushed tag
-# vX.Y.Z (matching gnome_markdown_editor.VERSION) publishes them as a
+# vX.Y.Z (matching markdown_editor.VERSION) publishes them as a
 # GitHub release.
 name: Build and release
 
@@ -32,12 +32,12 @@ jobs:
           cd web-src
           node build.mjs
           # Every vendored file, including new or deleted ones.
-          git add --intent-to-add ../gnome_markdown_editor/web/vendor
-          git diff --exit-code --stat HEAD -- ../gnome_markdown_editor/web/vendor
+          git add --intent-to-add ../markdown_editor/web/vendor
+          git diff --exit-code --stat HEAD -- ../markdown_editor/web/vendor
       - name: Tag matches the application version
         if: startsWith(github.ref, 'refs/tags/v')
         run: |
-          version="$(python3 -c 'from gnome_markdown_editor import VERSION; print(VERSION)')"
+          version="$(python3 -c 'from markdown_editor import VERSION; print(VERSION)')"
           test "v$version" = "$GITHUB_REF_NAME" || { echo "tag $GITHUB_REF_NAME != v$version"; exit 1; }
 
   appimage:
@@ -63,11 +63,18 @@ jobs:
       - uses: actions/checkout@v4
       - name: Bundle name
         id: name
-        run: echo "bundle=gnome-markdown-editor-$(sed -n 's/^VERSION = "\(.*\)"$/\1/p' gnome_markdown_editor/__init__.py)-x86_64.flatpak" >> "$GITHUB_OUTPUT"
+        run: echo "bundle=markdown-editor-$(sed -n 's/^VERSION = "\(.*\)"$/\1/p' markdown_editor/__init__.py)-x86_64.flatpak" >> "$GITHUB_OUTPUT"
+      - name: Flathub lint (manifest and AppStream metadata)
+        run: |
+          flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+          flatpak install --user -y --noninteractive flathub org.flatpak.Builder
+          lint() { flatpak run --command=flatpak-builder-lint org.flatpak.Builder "$@"; }
+          lint manifest packaging/flatpak/io.github._24icewolf42.markdown-editor.yml
+          lint appstream data/io.github._24icewolf42.markdown-editor.metainfo.xml
       - uses: flathub-infra/flatpak-github-actions/flatpak-builder@master
         with:
           bundle: ${{ steps.name.outputs.bundle }}
-          manifest-path: packaging/flatpak/io.github.gnome_markdown_editor.yml
+          manifest-path: packaging/flatpak/io.github._24icewolf42.markdown-editor.yml
           cache-key: flatpak-builder-${{ hashFiles('packaging/flatpak/*.yml') }}
 
   release:
@@ -87,7 +94,7 @@ jobs:
           python3 - "$GITHUB_REF_NAME" > notes.md <<'PY'
           import sys, xml.etree.ElementTree as ET
           version = sys.argv[1].lstrip("v")
-          root = ET.parse("data/io.github.gnome_markdown_editor.metainfo.xml").getroot()
+          root = ET.parse("data/io.github._24icewolf42.markdown-editor.metainfo.xml").getroot()
           rel = next((r for r in root.iter("release") if r.get("version") == version), None)
           if rel is None:
               sys.exit(f"metainfo has no <release version=\"{version}\">")

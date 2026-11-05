@@ -7,6 +7,6 @@ APPDIR = "@APPDIR@"  # replaced by `make install`
 root = os.path.dirname(os.path.dirname(os.path.realpath(__file__))) if APPDIR.startswith("@") else APPDIR
 sys.path.insert(0, root)
 
-from gnome_markdown_editor.application import main  # noqa: E402
+from markdown_editor.application import main  # noqa: E402
 
 sys.exit(main())

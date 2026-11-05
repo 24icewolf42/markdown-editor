@@ -1,14 +1,14 @@
 #!/bin/sh
-# Builds dist/gnome-markdown-editor-<version>-x86_64.AppImage.
+# Builds dist/markdown-editor-<version>-x86_64.AppImage.
 # appimagetool and the AppImage runtime are pinned releases, checked by sha256.
 set -eu
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-APP_ID=io.github.gnome_markdown_editor
-VERSION="$(sed -n 's/^VERSION = "\(.*\)"$/\1/p' "$ROOT/gnome_markdown_editor/__init__.py")"
+APP_ID=io.github._24icewolf42.markdown-editor
+VERSION="$(sed -n 's/^VERSION = "\(.*\)"$/\1/p' "$ROOT/markdown_editor/__init__.py")"
 ARCH=x86_64
 BUILD="$ROOT/build/appimage"
 APPDIR="$BUILD/AppDir"
-OUT="$ROOT/dist/gnome-markdown-editor-$VERSION-$ARCH.AppImage"
+OUT="$ROOT/dist/markdown-editor-$VERSION-$ARCH.AppImage"
 
 TOOL_URL=https://github.com/AppImage/appimagetool/releases/download/1.9.1/appimagetool-x86_64.AppImage
 TOOL_SHA256=ed4ce84f0d9caff66f50bcca6ff6f35aae54ce8135408b3fa33abfc3cb384eb0
@@ -29,15 +29,15 @@ fetch "$RUNTIME_URL" "$RUNTIME_SHA256" "$BUILD/runtime"
 chmod +x "$BUILD/appimagetool"
 
 rm -rf "$APPDIR"
-mkdir -p "$APPDIR/usr/share/gnome-markdown-editor" "$APPDIR/usr/share/applications" "$APPDIR/usr/share/metainfo"
-(cd "$ROOT" && git ls-files -z gnome_markdown_editor | xargs -0 cp --parents -t "$APPDIR/usr/share/gnome-markdown-editor")
-cp -r "$ROOT/gnome_markdown_editor/data/icons" "$APPDIR/usr/share/"
+mkdir -p "$APPDIR/usr/share/markdown-editor" "$APPDIR/usr/share/applications" "$APPDIR/usr/share/metainfo"
+(cd "$ROOT" && git ls-files -z markdown_editor | xargs -0 cp --parents -t "$APPDIR/usr/share/markdown-editor")
+cp -r "$ROOT/markdown_editor/data/icons" "$APPDIR/usr/share/"
 cp "$ROOT/packaging/appimage/AppRun" "$APPDIR/AppRun"
 chmod +x "$APPDIR/AppRun"
 cp "$ROOT/data/$APP_ID.desktop" "$APPDIR/usr/share/applications/"
 cp "$ROOT/data/$APP_ID.desktop" "$APPDIR/"
 cp "$ROOT/data/$APP_ID.metainfo.xml" "$APPDIR/usr/share/metainfo/$APP_ID.appdata.xml"
-cp "$ROOT/gnome_markdown_editor/data/icons/hicolor/256x256/apps/$APP_ID.png" "$APPDIR/$APP_ID.png"
+cp "$ROOT/markdown_editor/data/icons/hicolor/256x256/apps/$APP_ID.png" "$APPDIR/$APP_ID.png"
 cp "$APPDIR/$APP_ID.png" "$APPDIR/.DirIcon"
 
 # appimagetool is itself an AppImage; extract-and-run avoids needing FUSE.

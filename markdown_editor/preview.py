@@ -23,6 +23,18 @@ _ALLOWED_CONTEXT_ACTIONS = {
 }
 
 
+def katex_cdn_css() -> str:
+    """KaTeX stylesheet URL for exported HTML, matching the bundled version."""
+    version = "0.19.1"
+    try:
+        for line in (VENDOR_DIR / "THIRD-PARTY-NOTICES.txt").read_text(encoding="utf-8").splitlines():
+            if line.startswith("katex "):
+                version = line.split()[1]
+    except OSError:
+        pass
+    return f"https://cdn.jsdelivr.net/npm/katex@{version}/dist/katex.min.css"
+
+
 def _shell_html() -> str:
     vendor = VENDOR_DIR.as_uri()
     web = WEB_DIR.as_uri()
@@ -95,6 +107,7 @@ class Preview(Gtk.Box):
         self.settings = Settings.get()
         self._ready = False
         self._pending_text: str | None = None
+        self._marp_themes: list[str] = []
         self._pending_anchor: str | None = None
         self._pending_line: float | None = None
         self._base_uri = Path.home().as_uri() + "/"
@@ -174,6 +187,15 @@ class Preview(Gtk.Box):
 
         self.webview.evaluate_javascript(code, -1, None, None, None, done)
 
+    def set_marp_themes(self, themes: list[str]) -> None:
+        """Custom Marp theme stylesheets for the next render."""
+        if themes == self._marp_themes:
+            return
+        self._marp_themes = themes
+        self._sent_text = None  # the next render sends the whole text, even if unchanged
+        if self._ready:
+            self._js(f"GME.setMarpThemes({json.dumps(themes)})")
+
     def render(self, text: str) -> None:
         self.last_render_posted = True
         self._last_text = text
@@ -224,7 +246,8 @@ class Preview(Gtk.Box):
         if not self._ready:
             callback(None)
             return
-        self._js("GME.exportHtml()", lambda v: callback(v.to_string() if v is not None else None))
+        opts = json.dumps({"katexCssUrl": katex_cdn_css()})
+        self._js(f"GME.exportHtml({opts})", lambda v: callback(v.to_string() if v is not None else None))
 
     def print_document(self, parent: Gtk.Window) -> None:
         op = WebKit.PrintOperation.new(self.webview)
@@ -254,6 +277,8 @@ class Preview(Gtk.Box):
             "maxWidth": not self.settings.props.preview_full_width,
             "collapseChangelogs": self.settings.props.collapse_changelogs,
             "mermaidUrl": (VENDOR_DIR / "mermaid.min.js").as_uri(),
+            "marpUrl": (VENDOR_DIR / "marp.js").as_uri(),
+            "katexCssUrl": (VENDOR_DIR / "katex" / "katex.min.css").as_uri(),
         }
         if accent is not None:
             cfg["accent"] = "#%02x%02x%02x" % (int(accent.red * 255), int(accent.green * 255), int(accent.blue * 255))
@@ -284,6 +309,8 @@ class Preview(Gtk.Box):
         if kind == "ready":
             self._ready = True
             self._apply_config()
+            if self._marp_themes:
+                self._js(f"GME.setMarpThemes({json.dumps(self._marp_themes)})")
             text = self._pending_text if self._pending_text is not None else self._last_text
             self._pending_text = None
             if text is not None:

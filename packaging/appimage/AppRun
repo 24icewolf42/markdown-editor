@@ -53,10 +53,10 @@ On older systems use the Flatpak bundle from the same release: it is self-contai
     exit 1
 fi
 
-export PYTHONPATH="$APPDIR/usr/share/gnome-markdown-editor${PYTHONPATH:+:$PYTHONPATH}"
+export PYTHONPATH="$APPDIR/usr/share/markdown-editor${PYTHONPATH:+:$PYTHONPATH}"
 exec "$PYTHON" -c '
 import sys
-sys.argv[0] = "gnome-markdown-editor"
-from gnome_markdown_editor.application import main
+sys.argv[0] = "markdown-editor"
+from markdown_editor.application import main
 sys.exit(main())
 ' "$@"

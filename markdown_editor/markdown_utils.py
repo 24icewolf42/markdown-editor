@@ -326,3 +326,64 @@ def word_count(text: str) -> int:
     syntax (#, |, ---, ```) does not count."""
     m = FRONT_MATTER_RE.match(text)
     return sum(1 for _ in WORD_RE.finditer(text, m.end() if m else 0))
+
+
+# ---------------------------------------------------------------------------
+# Marp slide decks
+
+_FRONT_MATTER_RE = re.compile(r"\A---[ \t]*\r?\n(.*?)\r?\n---[ \t]*(?:\r?\n|\Z)", re.S)
+_MARP_TRUE_RE = re.compile(r"^marp[ \t]*:[ \t]*(?:true|True|TRUE)[ \t]*(?:#.*)?$", re.M)
+
+
+def is_marp(text: str) -> bool:
+    """Whether the YAML front matter at the start of ``text`` says ``marp: true``."""
+    m = _FRONT_MATTER_RE.match(text)
+    return bool(m and _MARP_TRUE_RE.search(m.group(1)))
+
+
+MARP_BUILTIN_THEMES = frozenset({"default", "gaia", "uncover"})
+_MARP_THEME_RE = re.compile(r"""^theme[ \t]*:[ \t]*["']?([^"'#\s]+)["']?[ \t]*(?:#.*)?$""", re.M)
+_CSS_THEME_RE = re.compile(r"/\*[\s*!]*@theme[ \t]+([^\s*]+)")
+_CSS_URL_RE = re.compile(r"""url\(\s*(["']?)(?![a-zA-Z][\w+.-]*:|/|#)([^"')]+)\1\s*\)""")
+
+
+_COMMENT_RE = re.compile(r"<!--(.*?)-->", re.S)
+_COMMENT_THEME_RE = re.compile(r"""^[ \t]*theme[ \t]*:[ \t]*["']?([^"'\s]+?)["']?[ \t]*$""", re.M)
+_CSS_IMPORT_RE = re.compile(r"""@import(?:-theme)?\s+(?:url\()?\s*["']([^"']+)["']""")
+
+
+def marp_theme(text: str) -> str | None:
+    """A Marp deck's ``theme`` global directive: from the front matter or a
+    ``<!-- theme: name -->`` comment (the last one wins, as in Marp)."""
+    m = _FRONT_MATTER_RE.match(text)
+    t = _MARP_THEME_RE.search(m.group(1)) if m else None
+    name = t.group(1) if t else None
+    body = text[m.end() :] if m else text
+    if "<!--" in body:
+        # Comments inside code are code, not directives.
+        lines = body.split("\n")
+        mask = code_line_mask(lines)
+        body = "\n".join("" if code else line for line, code in zip(lines, mask))
+        for c in _COMMENT_RE.finditer(body):
+            for d in _COMMENT_THEME_RE.finditer(c.group(1).strip().replace("\r", "")):
+                name = d.group(1)
+    return name
+
+
+def css_theme_imports(css: str) -> list[str]:
+    """Theme names a theme stylesheet imports (``@import 'base'``)."""
+    return _CSS_IMPORT_RE.findall(css)
+
+
+def css_theme_name(css: str) -> str | None:
+    """The name a Marp theme stylesheet declares with ``/* @theme name */``."""
+    m = _CSS_THEME_RE.search(css)
+    return m.group(1) if m else None
+
+
+def absolute_css_urls(css: str, base_uri: str) -> str:
+    """Resolve relative ``url(...)`` references against the stylesheet's folder."""
+    from urllib.parse import urljoin
+
+    base = base_uri if base_uri.endswith("/") else base_uri + "/"
+    return _CSS_URL_RE.sub(lambda m: f'url("{urljoin(base, m.group(2).strip())}")', css)

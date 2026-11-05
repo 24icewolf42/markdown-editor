@@ -1,0 +1,10 @@
+Bundled license information:
+
+js-yaml/dist/js-yaml.cjs.js:
+  /*! js-yaml 5.5.0 https://github.com/nodeca/js-yaml @license MIT */
+
+cssesc/cssesc.js:
+  /*! https://mths.be/cssesc v3.0.0 by @mathias */
+
+@marp-team/marp-core/lib/marp.js:
+  /*! Copyright Twitter Inc. and other contributors. Licensed under MIT */

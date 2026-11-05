@@ -1,4 +1,4 @@
-// Builds the preview assets into ../gnome_markdown_editor/web/vendor.
+// Builds the preview assets into ../markdown_editor/web/vendor.
 // The output is committed alongside the app, so running the editor needs no
 // Node.js; only re-run this when updating the renderer or its dependencies.
 
@@ -8,7 +8,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url));
-const out = join(here, "..", "gnome_markdown_editor", "web", "vendor");
+const out = join(here, "..", "markdown_editor", "web", "vendor");
 const nm = join(here, "node_modules");
 
 rmSync(out, { recursive: true, force: true });
@@ -24,6 +24,34 @@ await build({
   legalComments: "external",
   // markdown-it-dollarmath deep-imports a markdown-it 13 path; v14 renamed it.
   alias: { "markdown-it/lib/common/utils.js": join(nm, "markdown-it", "lib", "common", "utils.mjs") },
+  logLevel: "info",
+});
+
+// Marp (slide decks) is loaded on demand. Its MathJax backend and its own
+// highlight.js language set are stubbed out: the deck uses KaTeX and the
+// preview's highlighter, and the bundle stays a fraction of the size.
+const marpStubs = {
+  name: "marp-stubs",
+  setup(b) {
+    b.onResolve({ filter: /^mathjax-full\// }, (a) => ({ path: a.path, namespace: "stub" }));
+    b.onResolve({ filter: /^highlight\.js\/lib\/languages\// }, (a) => ({ path: a.path, namespace: "stub" }));
+    // KaTeX comes from the preview renderer (window.GMEKatex).
+    b.onResolve({ filter: /^katex$/ }, () => ({ path: join(here, "src", "katex-shim.js") }));
+    b.onLoad({ filter: /.*/, namespace: "stub" }, () => ({
+      contents: "module.exports = new Proxy(function () { return {}; }, { get: (t, k) => (k === '__esModule' ? false : t) });",
+      loader: "js",
+    }));
+  },
+};
+await build({
+  entryPoints: [join(here, "src", "marp.js")],
+  bundle: true,
+  format: "iife",
+  minify: true,
+  target: ["safari16"],
+  outfile: join(out, "marp.js"),
+  legalComments: "external",
+  plugins: [marpStubs],
   logLevel: "info",
 });
 
@@ -59,6 +87,7 @@ const pkgs = [
   "markdown-it", "markdown-it-footnote", "markdown-it-attrs", "markdown-it-mark", "markdown-it-sub",
   "markdown-it-sup", "markdown-it-deflist", "markdown-it-abbr", "markdown-it-ins", "markdown-it-dollarmath",
   "markdown-it-github-alerts", "github-slugger", "js-yaml", "katex", "highlight.js", "dompurify", "morphdom", "mermaid",
+  "@marp-team/marp-core", "@marp-team/marpit", "postcss-selector-parser", "xss",
 ];
 let notices = "Third-party components bundled in this directory\n\n";
 for (const p of pkgs) {

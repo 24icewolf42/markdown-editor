@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github._24icewolf42.markdown-editor</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+  <name>Markdown Editor</name>
+  <summary>Write Markdown with a live preview</summary>
+  <description>
+    <p>
+      Markdown Editor is a Markdown editor and viewer modelled on GNOME Text Editor. The preview
+      sits next to the text, scrolls with it and renders what technical documents use: Mermaid
+      diagrams, math, GitHub alerts and Marp slide decks.
+    </p>
+    <ul>
+      <li>Mermaid diagrams of every type, KaTeX math and syntax highlighting for all common languages</li>
+      <li>Marp slide decks: a document with “marp: true” previews as slides, with themes and directives</li>
+      <li>GitHub and Hugo conventions: alerts, task lists, footnotes, front matter, heading anchors and links between documents</li>
+      <li>Large documents stay responsive: only the edited section is rendered again</li>
+      <li>Changelog sections fold away until needed</li>
+      <li>Tabs, find and replace, a heading outline, spell checking and formatting shortcuts</li>
+      <li>Synchronized scrolling, printing and HTML export</li>
+    </ul>
+  </description>
+  <developer id="io.github._24icewolf42">
+    <name>Andreas Landgraf</name>
+  </developer>
+  <url type="homepage">https://github.com/24icewolf42/markdown-editor</url>
+  <url type="bugtracker">https://github.com/24icewolf42/markdown-editor/issues</url>
+  <url type="vcs-browser">https://github.com/24icewolf42/markdown-editor</url>
+  <launchable type="desktop-id">io.github._24icewolf42.markdown-editor.desktop</launchable>
+  <replaces>
+    <id>io.github.gnome_markdown_editor</id>
+  </replaces>
+  <provides>
+    <binary>markdown-editor</binary>
+  </provides>
+  <branding>
+    <color type="primary" scheme_preference="light">#99c1f1</color>
+    <color type="primary" scheme_preference="dark">#1a5fb4</color>
+  </branding>
+  <content_rating type="oars-1.1"/>
+  <supports>
+    <control>keyboard</control>
+    <control>pointing</control>
+  </supports>
+  <requires>
+    <display_length compare="ge">768</display_length>
+  </requires>
+  <screenshots>
+    <screenshot type="default">
+      <caption>The editor with the live preview</caption>
+      <image>https://raw.githubusercontent.com/24icewolf42/markdown-editor/main/docs/screenshot-light.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Dark style</caption>
+      <image>https://raw.githubusercontent.com/24icewolf42/markdown-editor/main/docs/screenshot-dark.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>A Marp slide deck</caption>
+      <image>https://raw.githubusercontent.com/24icewolf42/markdown-editor/main/docs/screenshot-marp.png</image>
+    </screenshot>
+  </screenshots>
+  <keywords>
+    <keyword>markdown</keyword>
+    <keyword>preview</keyword>
+    <keyword>mermaid</keyword>
+    <keyword>marp</keyword>
+    <keyword>slides</keyword>
+  </keywords>
+  <releases>
+    <release version="0.3.0" date="2026-11-05">
+      <description>
+        <p>Releases now ship download artifacts.</p>
+        <ul>
+          <li>Flatpak bundle: self-contained on the GNOME 51 runtime, with spell checking.</li>
+          <li>AppImage: small; runs on GNOME 49 or newer desktops using the system libraries.</li>
+          <li>Spell checking is optional when libspelling is not installed.</li>
+        </ul>
+      </description>
+    </release>
+    <release version="0.2.0" date="2026-11-05">
+      <description>
+        <p>Large documents edit and scroll smoothly; changelog sections are folded by default.</p>
+      </description>
+    </release>
+    <release version="0.1.0" date="2026-11-05"/>
+  </releases>
+</component>

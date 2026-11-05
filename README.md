@@ -1,9 +1,22 @@
-# Markdown Editor for GNOME
+# Markdown Editor
 
-A Markdown editor and viewer for GNOME, modelled on GNOME Text Editor. It is built with
-GTK 4, libadwaita, GtkSourceView 5 and libspelling, and renders a live preview in WebKitGTK.
+A Markdown editor and viewer for GNOME, modelled on GNOME Text Editor. The preview sits next to
+the text, scrolls with it, and renders what technical documents use:
 
-![Split view](docs/screenshot.png)
+- **Mermaid diagrams** of every type, **KaTeX math**, and syntax highlighting for all common
+  languages (plus CDDL, Rego, ASN.1 and CBOR).
+- **Marp slide decks**: a document with `marp: true` in its front matter previews as slides, with
+  Marp's themes and directives, and the editor highlights directives and slide separators.
+- **GitHub and Hugo conventions**: alerts, task lists, footnotes, front matter, heading anchors as
+  GitHub and Hugo generate them, and links between documents of a repository.
+- **Large documents stay responsive**: a multi-megabyte specification re-renders only the section
+  being edited, and diagrams draw as they scroll into view.
+- **Changelogs fold away** until they are needed.
+
+It is built with GTK 4, libadwaita, GtkSourceView 5 and libspelling, and renders the preview in
+WebKitGTK.
+
+![Split view](docs/screenshot-light.png)
 
 ## Features
 
@@ -59,6 +72,7 @@ GTK 4, libadwaita, GtkSourceView 5 and libspelling, and renders a live preview i
 | Syntax highlighting | All highlight.js languages, plus CDDL, Rego, ASN.1 and CBOR diagnostic notation |
 | Front matter | YAML `---` (shown as a table) and TOML `+++` (shown raw), collapsed by default |
 | Changelogs | Sections titled *Changelog*, *Revision History*, *Release Notes* and similar, or titled with "changes"/"history" and listing versions or dates, fold into a collapsed block that shows the entry count. Only the lists and tables right after the heading fold; prose after them stays visible. Links to the section open it, printing expands it, and Preferences → Preview turns folding off. |
+| Marp slide decks | Front matter `marp: true` renders the document with [Marp Core](https://github.com/marp-team/marp-core): slides split at `---`, the `default`, `gaia` and `uncover` themes, global and local directives (`<!-- _class: lead -->`), `<style>` and `style:` CSS, background images (`![bg left](…)`), image filters and math (KaTeX, also for `math: mathjax`). Custom themes are found by name: a stylesheet declaring `/* @theme name */` next to the document, in its `assets`, `themes`, `theme`, `css` or `.marp` folder, or in those places of the folders above it up to the repository root. Slides scale to the preview width, scroll in sync with the source and print one per page. Not supported: Marp's runtime script, so `<!-- fit -->` headings and long code blocks are not shrunk to fit, and no presenter view. The editor highlights directives, directive comments, slide separators and image keywords. |
 | Antigravity carousels | `` ````carousel `` fences with `<!-- slide -->` separators |
 | Footnotes, definition lists, abbreviations | `[^1]`, `Term` / `: definition`, `*[HTML]: …` |
 | `==mark==`, `++ins++`, `~sub~`, `^sup^` | |
@@ -93,24 +107,29 @@ a Content-Security-Policy allows scripts only from the application's own files. 
 `connect-src`, frames and plugins. Mermaid runs at `securityLevel: "strict"`. The page itself cannot
 navigate: every link goes to the application.
 
-Remote images in a document still load, as in any Markdown viewer.
+Remote images in a document still load, as in any Markdown viewer. Marp themes that `@import`
+web fonts (`gaia`, `uncover`) fall back to local fonts in the preview; an exported deck loads them.
 
 ## Download
 
-Each [GitHub release](https://github.com/24icewolf42/gnome-markdown-editor/releases) carries:
+Each [GitHub release](https://github.com/24icewolf42/markdown-editor/releases) carries:
 
-- **`gnome-markdown-editor-<version>-x86_64.flatpak`** (recommended) — self-contained on the GNOME 51
-  runtime: `flatpak install --user gnome-markdown-editor-<version>-x86_64.flatpak` (the runtime comes
+- **`markdown-editor-<version>-x86_64.flatpak`** (recommended) — self-contained on the GNOME 51
+  runtime: `flatpak install --user markdown-editor-<version>-x86_64.flatpak` (the runtime comes
   from Flathub).
-- **`gnome-markdown-editor-<version>-x86_64.AppImage`** — a few MB; uses the system's GNOME libraries,
+- **`markdown-editor-<version>-x86_64.AppImage`** — a few MB; uses the system's GNOME libraries,
   so it needs a GNOME 49 or newer desktop (GTK 4.12+, libadwaita 1.8+, GtkSourceView 5, WebKitGTK 6.0,
   PyGObject; libspelling optional). `chmod +x` it and run. On a system without them it says what to
   install. WebKitGTK cannot be relocated into an AppImage, which is why the self-contained build is
   the Flatpak.
+
+  The Flatpak can read and write the home folder, because links between documents, relative images
+  and reloading on change need the files next to the opened one. Files elsewhere open through the
+  file chooser.
 - `SHA256SUMS` for both.
 
 Releases are built by `.github/workflows/release.yml`: every push builds both artifacts after the
-tests; pushing a tag `vX.Y.Z` that matches `gnome_markdown_editor.VERSION` and has a `<release>` entry
+tests; pushing a tag `vX.Y.Z` that matches `markdown_editor.VERSION` and has a `<release>` entry
 in the AppStream metainfo publishes them. Locally: `make appimage`, `make flatpak`.
 
 ## Requirements
@@ -122,7 +141,7 @@ python3-gobject gtk4 libadwaita gtksourceview5 webkitgtk6.0 libspelling
 ```
 
 Running the editor needs no Node.js. The preview assets ship pre-built in
-`gnome_markdown_editor/web/vendor/`.
+`markdown_editor/web/vendor/`.
 
 ## Run, install, test
 
@@ -143,8 +162,8 @@ Debugging: `GME_DEBUG=1` prints preview console messages and enables the WebKit 
 ## Layout
 
 ```
-bin/gnome-markdown-editor        launcher
-gnome_markdown_editor/
+bin/markdown-editor              launcher
+markdown_editor/
   application.py                 Adw.Application, global actions, editor font, shortcuts/about dialogs
   window.py                      window, tabs, header bar, outline, actions, link routing, export
   document.py                    one document: GtkSourceView, file I/O, change monitor, scroll sync
@@ -153,12 +172,15 @@ gnome_markdown_editor/
   preview.py                     WebKit preview and host↔page bridge
   preferences.py                 preferences dialog
   settings.py                    JSON-backed settings (GObject properties)
-  markdown_utils.py              headings/slugs, lists, tables (pure Python, unit-tested)
+  markdown_utils.py              headings/slugs, lists, tables, Marp detection (pure Python, unit-tested)
+  data/language-specs/marp.lang  GtkSourceView highlighting for Marp decks
   web/preview.css                preview stylesheet (libadwaita palette, light/dark)
-  web/vendor/                    built renderer bundle, Mermaid, KaTeX, highlight.js themes
-web-src/                         renderer source (markdown-it + plugins) and build script
+  web/vendor/                    built renderer bundle, Marp and Mermaid bundles, KaTeX, highlight.js themes
+web-src/                         renderer source (markdown-it + plugins, Marp entry) and build script
 tests/                           unit tests, GUI smoke test, fixtures
 data/                            desktop entry, AppStream metainfo
 ```
 
-Settings live in `~/.config/gnome-markdown-editor/settings.json`.
+Settings live in `~/.config/markdown-editor/settings.json` (versions before 0.4.0 used
+`~/.config/gnome-markdown-editor/`; it is read as long as the new file does not exist yet, and the
+first changed setting creates the new file).

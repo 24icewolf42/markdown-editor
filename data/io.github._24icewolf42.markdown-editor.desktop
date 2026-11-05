@@ -2,12 +2,12 @@
 Name=Markdown Editor
 GenericName=Markdown Editor
 Comment=Edit and preview Markdown documents
-Exec=gnome-markdown-editor %U
-Icon=io.github.gnome_markdown_editor
+Exec=markdown-editor %U
+Icon=io.github._24icewolf42.markdown-editor
 Terminal=false
 Type=Application
 Categories=GNOME;GTK;Utility;TextEditor;
-Keywords=markdown;md;text;editor;preview;mermaid;
+Keywords=markdown;md;text;editor;preview;mermaid;marp;slides;
 MimeType=text/markdown;text/x-markdown;
 StartupNotify=true
 DBusActivatable=false
@@ -15,4 +15,4 @@ Actions=new-window;
 
 [Desktop Action new-window]
 Name=New Window
-Exec=gnome-markdown-editor --new-window
+Exec=markdown-editor --new-window

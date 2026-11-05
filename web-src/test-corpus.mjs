@@ -7,9 +7,10 @@ import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url));
-const bundle = readFileSync(join(here, "..", "gnome_markdown_editor", "web", "vendor", "renderer.js"), "utf8");
+const bundle = readFileSync(join(here, "..", "markdown_editor", "web", "vendor", "renderer.js"), "utf8");
 const dom = new JSDOM(`<!doctype html><html><body><div id="content"></div></body></html>`, { runScripts: "outside-only" });
 dom.window.eval(bundle);
+dom.window.eval(readFileSync(join(here, "..", "markdown_editor", "web", "vendor", "marp.js"), "utf8"));
 const GME = dom.window.GME;
 
 const skip = new Set(["node_modules", ".git", "public", "out", "themes", "graphify-out", "resources"]);
@@ -33,7 +34,7 @@ function normalise(root) {
   for (const sec of [...root.querySelectorAll("section.md-chunk")]) sec.replaceWith(...sec.childNodes);
   return root.innerHTML.replace(/>\s+</g, "><").trim();
 }
-let chunkMismatch = [], changelogs = 0;
+let chunkMismatch = [], changelogs = 0, decks = 0, slides = 0, deckErrors = [];
 let failures = 0, mathInline = [], mathBlocks = 0, alerts = 0, mermaid = 0, shortcodes = 0, footnotes = 0, tasks = 0, carousels = 0, fm = 0, mathErrors = [];
 const t0 = Date.now();
 for (const f of files) {
@@ -52,9 +53,19 @@ for (const f of files) {
     tasks += d.querySelectorAll(".task-list-item-checkbox").length;
     carousels += d.querySelectorAll(".carousel").length;
     fm += d.querySelectorAll(".front-matter").length;
-    // The chunked preview path must produce the same document.
     GME.render(src);
     const content = dom.window.document.getElementById("content");
+    const deck = content.querySelector(":scope > .marp-deck");
+    if (deck) {
+      // Marp decks render as slides, not as the Markdown document.
+      decks++;
+      const root = deck.shadowRoot;
+      const n = root.querySelectorAll("svg[data-marpit-svg]").length;
+      slides += n;
+      if (!n || root.querySelector(".render-error") || root.querySelector("script")) deckErrors.push(f);
+      continue;
+    }
+    // The chunked preview path must produce the same document.
     changelogs += content.querySelectorAll("details.changelog").length;
     const chunked = normalise(content.cloneNode(true));
     const whole = dom.window.document.createElement("div");
@@ -66,7 +77,8 @@ for (const f of files) {
     console.log("FAIL", f, e.stack.split("\n").slice(0, 3).join(" | "));
   }
 }
-console.log(JSON.stringify({ files: files.length, ms: Date.now() - t0, failures, mathInline: mathInline.length, mathBlocks, mathErrors: mathErrors.length, alerts, mermaid, shortcodes, footnotes, tasks, carousels, frontMatter: fm, changelogs, chunkMismatch: chunkMismatch.length }));
+console.log(JSON.stringify({ files: files.length, ms: Date.now() - t0, failures, mathInline: mathInline.length, mathBlocks, mathErrors: mathErrors.length, alerts, mermaid, shortcodes, footnotes, tasks, carousels, frontMatter: fm, changelogs, decks, slides, deckErrors: deckErrors.length, chunkMismatch: chunkMismatch.length }));
+for (const f of deckErrors) console.log("  deck error:", f);
 for (const f of chunkMismatch.slice(0, 10)) console.log("  chunk mismatch:", f);
 for (const m of mathInline.slice(0, 40)) console.log("  math:", m);
 for (const m of mathErrors.slice(0, 10)) console.log("  math-error:", m);

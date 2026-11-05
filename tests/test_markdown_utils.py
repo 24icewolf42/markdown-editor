@@ -6,7 +6,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from gnome_markdown_editor import markdown_utils as mu  # noqa: E402
+from markdown_editor import markdown_utils as mu  # noqa: E402
 
 
 class SlugTests(unittest.TestCase):
@@ -82,6 +82,33 @@ class MiscTests(unittest.TestCase):
         self.assertEqual(mu.word_count("---\ntitle: a b\n---\nOne two-three four's"), 3)
         # Markdown syntax is not counted.
         self.assertEqual(mu.word_count("# Head\n\n| a | b |\n| --- | --- |\n\n```py\nx = 1\n```\n- item"), 7)
+
+    def test_is_marp(self):
+        self.assertTrue(mu.is_marp("---\nmarp: true\ntheme: gaia\n---\n# A\n"))
+        self.assertTrue(mu.is_marp("---\r\ntitle: x\r\nmarp: true  # deck\r\n---\r\n"))
+        self.assertFalse(mu.is_marp("---\nmarp: false\n---\n"))
+        self.assertFalse(mu.is_marp("---\nmarp: \"true\"\n---\n"))
+        self.assertFalse(mu.is_marp("---\nx:\n  marp: true\n---\n"))  # not top level
+        self.assertFalse(mu.is_marp("# A\n\n---\nmarp: true\n---\n"))  # not front matter
+        self.assertFalse(mu.is_marp("---\nmarp: true\n"))  # unterminated
+
+    def test_marp_theme(self):
+        self.assertEqual(mu.marp_theme("---\nmarp: true\ntheme: corporate\n---\n"), "corporate")
+        self.assertEqual(mu.marp_theme("---\nmarp: true\ntheme: 'my-theme'  # c\n---\n"), "my-theme")
+        self.assertIsNone(mu.marp_theme("---\nmarp: true\n---\ntheme: x\n"))
+        self.assertEqual(mu.marp_theme("---\nmarp: true\ntheme: a\n---\n<!-- theme: custom -->\n"), "custom")
+        self.assertEqual(mu.marp_theme("---\nmarp: true\ntheme: a\n---\n```\n<!-- theme: b -->\n```\n"), "a")
+        self.assertEqual(mu.marp_theme("---\nmarp: true\n---\n<!--\ntheme: x\npaginate: true\n-->\n"), "x")
+        self.assertEqual(mu.css_theme_imports("/* @theme x */\n@import 'base';\n@import url(\"other\");"), ["base", "other"])
+        self.assertEqual(mu.css_theme_name("/*!\n * @theme corporate\n */\nsection{}"), "corporate")
+        self.assertEqual(mu.css_theme_name("/* @theme a-b */"), "a-b")
+        self.assertIsNone(mu.css_theme_name("section { color: red }"))
+        css = 'a{background:url(img/logo.svg)} b{background:url("https://x/y.png")} c{background:url(data:image/png;base64,AA)} d{src:url(\'../f.woff2\')}'
+        out = mu.absolute_css_urls(css, "file:///deck/assets")
+        self.assertIn('url("file:///deck/assets/img/logo.svg")', out)
+        self.assertIn('url("https://x/y.png")', out)
+        self.assertIn("url(data:image/png;base64,AA)", out)
+        self.assertIn('url("file:///deck/f.woff2")', out)
 
 
 if __name__ == "__main__":

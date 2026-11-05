@@ -1,4 +1,4 @@
-// Preview renderer for gnome-markdown-editor.
+// Preview renderer for markdown-editor.
 //
 // Runs inside the WebKitGTK preview. The host (Python) calls the functions on
 // `window.GME` through `evaluate_javascript`, and this side talks back through
@@ -25,6 +25,7 @@ import DOMPurify from "dompurify";
 import { registerExtraLanguages } from "./languages.js";
 
 registerExtraLanguages(hljs);
+window.GMEKatex = katex; // shared with the on-demand Marp bundle
 
 const state = {
   theme: "light",
@@ -40,6 +41,12 @@ const state = {
   openChangelogs: new Set(), // changelog sections the reader expanded
   diagramQueue: [],
   diagramsRunning: false,
+  marpUrl: null,
+  marpLoading: null,
+  marpFailed: null, // load error: decks then render as plain Markdown
+  katexCssUrl: null,
+  marpThemes: [], // custom theme stylesheets found by the host
+  marpCheck: { raw: null, value: false },
 };
 
 // --------------------------------------------------------------------------
@@ -572,6 +579,11 @@ async function runDiagramQueue() {
 
 // Render every diagram now (printing, export). Posts all-diagrams when done.
 function renderAllDiagrams() {
+  if (state.deckPending) {
+    // A deck is waiting for the Marp bundle: printing and export wait too.
+    state.marpLoading.then(renderAllDiagrams, renderAllDiagrams);
+    return;
+  }
   const content = document.getElementById("content");
   refreshDiagrams(content);
   const pending = [...content.querySelectorAll(".mermaid[data-mermaid-key]")].filter(
@@ -763,9 +775,14 @@ function renderMarkdown(src) {
 
 function render(src) {
   state.renderSeq++;
+  state.deckPending = false; // set again by renderDeck while Marp loads
   state.lastSource = src;
   const content = document.getElementById("content");
   const { body, frontMatter } = splitFrontMatter(src);
+  if (isMarpDocument(frontMatter) && !state.marpFailed) {
+    renderDeck(content, src);
+    return;
+  }
   // Footnotes and abbreviations are numbered/resolved document-wide by their
   // plugins: such documents render as one chunk.
   // (footnote syntax outside code, or abbreviation definitions).
@@ -860,6 +877,162 @@ function primeContentVisibility(content, created, total) {
   primeTimer = setTimeout(enable, 1000);
 }
 
+// --------------------------------------------------------------------------
+// Marp slide decks (front matter `marp: true`). The deck renders with Marp
+// Core, loaded on demand, into a shadow root: the preview stylesheet and the
+// slide themes stay out of each other's way. Slides are inline SVGs that
+// scale to the preview width.
+
+function isMarpDocument(fm) {
+  if (!fm || fm.kind !== "yaml") return false;
+  if (state.marpCheck.raw !== fm.raw) {
+    let value;
+    try {
+      const data = yaml.load(fm.raw);
+      value = !!data && typeof data === "object" && data.marp === true;
+    } catch (e) {
+      value = /^marp[ \t]*:[ \t]*(?:true|True|TRUE)[ \t]*(?:#.*)?$/m.test(fm.raw); // as the editor decides
+    }
+    state.marpCheck = { raw: fm.raw, value };
+  }
+  return state.marpCheck.value;
+}
+
+function loadMarp() {
+  if (window.GMEMarp) return Promise.resolve(window.GMEMarp);
+  if (state.marpScript) return state.marpScript;
+  state.marpScript = new Promise((resolve, reject) => {
+    if (!state.marpUrl) {
+      reject(new Error("The Marp library is not available"));
+      return;
+    }
+    const s = document.createElement("script");
+    s.src = state.marpUrl;
+    s.onload = () => (window.GMEMarp ? resolve(window.GMEMarp) : reject(new Error("The Marp library did not load")));
+    s.onerror = () => reject(new Error("Could not load the Marp library"));
+    document.head.appendChild(s);
+  });
+  return state.marpScript;
+}
+
+const DECK_CSS = `
+:host { display: block; }
+div.marpit > svg[data-marpit-svg] {
+  display: block; width: 100%; height: auto; margin: 0 0 24px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(0, 0, 0, 0.06);
+  border-radius: 6px; overflow: hidden;
+}
+@media print {
+  div.marpit > svg[data-marpit-svg] { box-shadow: none; border-radius: 0; margin: 0; break-after: page; break-inside: avoid; }
+}
+.render-error { color: #c01c28; white-space: pre-wrap; font: 0.9em monospace; }
+`;
+
+function sanitizeDeck(html) {
+  return DOMPurify.sanitize(html, {
+    ALLOWED_URI_REGEXP: URI_RE,
+    ADD_TAGS: ["foreignObject", "semantics", "annotation", "mrow"],
+    ADD_ATTR: ["data-line", "data-marpit-svg", "viewBox", "encoding", "aria-hidden"],
+    // Slides are HTML inside <foreignObject>. Each element is still checked;
+    // the page's CSP (scripts only from the app's files) stays the backstop.
+    HTML_INTEGRATION_POINTS: { foreignobject: true },
+    RETURN_DOM_FRAGMENT: true,
+    FORBID_TAGS: ["style", "form"],
+    FORBID_ATTR: ["srcdoc", "formaction"],
+    ALLOW_UNKNOWN_PROTOCOLS: false,
+  });
+}
+
+// The scaling fix depends on the slide size: redo it when the width changes.
+const deckResize = window.ResizeObserver ? new ResizeObserver((entries) => entries.forEach((e) => fitDeck(e.target))) : null;
+
+function fitDeck(deck) {
+  if (!window.GMEMarp || !deck.shadowRoot) return;
+  window.GMEMarp.fit(deck.shadowRoot).then(invalidateGeometry, () => {});
+}
+
+function renderDeck(content, src) {
+  if (!window.GMEMarp) {
+    const seq = state.renderSeq;
+    state.deckPending = true;
+    // Only the newest render re-renders (which clears deckPending). The
+    // chain settles before renderAllDiagrams' continuation, which is
+    // attached to it later.
+    const again = () => {
+      if (seq !== state.renderSeq) return;
+      try {
+        render(state.lastSource);
+      } catch (e) {
+        state.deckPending = false;
+        console.error(e);
+      }
+    };
+    state.marpLoading = loadMarp().then(again, (e) => {
+      state.marpFailed = e.message;
+      again();
+    });
+    return;
+  }
+  let deck = content.firstElementChild;
+  if (!deck || !deck.classList.contains("marp-deck") || content.children.length !== 1) {
+    content.replaceChildren();
+    deck = document.createElement("section");
+    deck.className = "md-chunk marp-deck";
+    deck.dataset.base = "0";
+    deck.attachShadow({ mode: "open" });
+    content.appendChild(deck);
+    if (deckResize) deckResize.observe(deck);
+    content.classList.remove("cv");
+  }
+  const root = deck.shadowRoot;
+  let out;
+  try {
+    out = window.GMEMarp.render(src, highlight, state.marpThemes);
+  } catch (e) {
+    out = { html: `<div class="render-error">Slides could not be rendered: ${escapeHtml(e.message)}</div>`, css: "" };
+  }
+  if (root._gmeCss !== out.css) {
+    root._gmeCss = out.css;
+    const links = state.katexCssUrl ? `<link rel="stylesheet" href="${escapeHtml(state.katexCssUrl)}">` : "";
+    // Theme CSS goes in as text: it is scoped by Marp to the deck container.
+    root.innerHTML = `${links}<style class="deck-base"></style><style class="deck-theme"></style><div class="deck-body"></div>`;
+    root.querySelector(".deck-base").textContent = DECK_CSS;
+    root.querySelector(".deck-theme").textContent = out.css;
+  }
+  const holder = root.querySelector(".deck-body");
+  const frag = sanitizeDeck(out.html);
+  // Unchanged slides keep their DOM (loaded images, no flicker).
+  const old = new Map();
+  for (const svg of holder.querySelectorAll("svg[data-marpit-svg]")) {
+    const list = old.get(svg._gmeKey);
+    if (list) list.push(svg);
+    else old.set(svg._gmeKey, [svg]);
+  }
+  let created = 0;
+  for (const svg of [...frag.querySelectorAll("svg[data-marpit-svg]")]) {
+    const section = svg.querySelector("section[data-line]");
+    const line = section ? section.getAttribute("data-line") : null;
+    if (section) section.removeAttribute("data-line");
+    const key = svg.outerHTML;
+    const reuse = old.get(key);
+    const keep = reuse && reuse.length ? reuse.shift() : null;
+    if (keep) {
+      svg.replaceWith(keep);
+    } else {
+      svg._gmeKey = key;
+      created++;
+    }
+    const target = keep || svg;
+    if (line !== null) target.setAttribute("data-line", line);
+  }
+  holder.replaceChildren(frag);
+  fitDeck(deck);
+  document.body.classList.toggle("empty", !src.trim());
+  invalidateGeometry();
+  post({ type: "rendered", created, chunks: 1 });
+  if (!state.diagramQueue.length && !state.diagramsRunning) post({ type: "rendered-async" });
+}
+
 // Apply an edit to the last rendered source: the host sends only the changed
 // range instead of the whole document.
 function renderPatch(start, removed, inserted, newLength) {
@@ -916,7 +1089,7 @@ function updateCarousel(c) {
 // Scroll sync
 
 function absoluteLine(el) {
-  const chunk = el.closest(".md-chunk");
+  const chunk = el.closest(".md-chunk") || (el.getRootNode().host || null);
   return Number(el.dataset.line) + (chunk ? Number(chunk.dataset.base) || 0 : 0);
 }
 
@@ -947,7 +1120,7 @@ function innerEntries(chunk) {
   if (chunk.el._geom && chunk.el._geomVersion === state.geometryVersion) return chunk.el._geom;
   const out = [{ line: chunk.line, top: chunk.top }];
   const y0 = window.scrollY;
-  for (const el of chunk.el.querySelectorAll("[data-line]")) {
+  for (const el of (chunk.el.shadowRoot || chunk.el).querySelectorAll("[data-line]")) {
     if (el.closest(".carousel-slide")) continue;
     const line = Number(el.dataset.line) + chunk.base;
     if (Number.isNaN(line)) continue;
@@ -1059,7 +1232,11 @@ window.addEventListener(
 );
 
 function scrollToAnchor(id) {
-  const el = document.getElementById(id) || document.getElementsByName(id)[0];
+  const deck = document.querySelector("#content > .marp-deck");
+  // In a deck, `#3` is the third slide (Marp's slide anchors).
+  // Marp percent-encodes non-ASCII heading ids.
+  const inDeck = deck && deck.shadowRoot && (deck.shadowRoot.getElementById(id) || deck.shadowRoot.getElementById(encodeURIComponent(id)));
+  const el = (inDeck && (inDeck.closest("svg[data-marpit-svg]") || inDeck)) || document.getElementById(id) || document.getElementsByName(id)[0];
   if (!el) return false;
   // Open folded sections around the target (its own summary counts too).
   for (let d = el.closest("details"); d; d = d.parentElement && d.parentElement.closest("details")) {
@@ -1074,14 +1251,21 @@ function scrollToAnchor(id) {
 // --------------------------------------------------------------------------
 // Interaction
 
+// The element actually clicked, also inside a slide deck's shadow root.
+function eventTarget(ev) {
+  const t = ev.composedPath ? ev.composedPath()[0] : ev.target;
+  return t && t.closest ? t : t && t.parentElement ? t.parentElement : ev.target;
+}
+
 document.addEventListener("click", (ev) => {
-  const cb = ev.target.closest("input.task-list-item-checkbox");
+  const target = eventTarget(ev);
+  const cb = target.closest("input.task-list-item-checkbox");
   if (cb) {
     const chunk = cb.closest(".md-chunk");
     post({ type: "toggle-task", line: Number(cb.dataset.taskLine) + (chunk ? Number(chunk.dataset.base) || 0 : 0) });
     return;
   }
-  const copy = ev.target.closest(".code-copy");
+  const copy = target.closest(".code-copy");
   if (copy) {
     ev.preventDefault();
     const code = copy.parentElement.querySelector("code");
@@ -1090,7 +1274,7 @@ document.addEventListener("click", (ev) => {
     setTimeout(() => (copy.textContent = "Copy"), 1200);
     return;
   }
-  const a = ev.target.closest("a[href]");
+  const a = target.closest("a[href]");
   if (a) {
     ev.preventDefault();
     const href = a.getAttribute("href");
@@ -1109,8 +1293,9 @@ document.addEventListener("click", (ev) => {
 });
 
 document.addEventListener("dblclick", (ev) => {
-  const el = ev.target.closest("[data-line]");
-  if (el && !ev.target.closest(".carousel-slide")) post({ type: "reveal", line: absoluteLine(el) });
+  const target = eventTarget(ev);
+  const el = target.closest("[data-line]");
+  if (el && !target.closest(".carousel-slide")) post({ type: "reveal", line: absoluteLine(el) });
 });
 
 function openLightbox(el) {
@@ -1154,11 +1339,18 @@ function setTheme(theme) {
   if (!state.diagramQueue.length && !state.diagramsRunning) post({ type: "rendered-async" });
 }
 
+function setMarpThemes(list) {
+  // The next render (which the host sends right after) uses them.
+  state.marpThemes = Array.isArray(list) ? list : [];
+}
+
 function configure(opts) {
   opts = opts || {};
   const before = state.options.collapseChangelogs;
   Object.assign(state.options, opts);
   if (opts.mermaidUrl) state.mermaidUrl = opts.mermaidUrl;
+  if (opts.marpUrl) state.marpUrl = opts.marpUrl;
+  if (opts.katexCssUrl) state.katexCssUrl = opts.katexCssUrl;
   if (opts.theme) setTheme(opts.theme);
   if (opts.fontSize) document.documentElement.style.setProperty("--font-size", `${opts.fontSize}px`);
   if ("maxWidth" in opts) document.documentElement.classList.toggle("full-width", !opts.maxWidth);
@@ -1166,9 +1358,25 @@ function configure(opts) {
   invalidateGeometry();
 }
 
-function exportHtml() {
+function exportHtml(opts) {
   // Self-contained body markup for HTML export (mermaid already rendered).
-  return document.getElementById("content").innerHTML;
+  const content = document.getElementById("content");
+  const deck = content.querySelector(":scope > .marp-deck");
+  if (!deck || !deck.shadowRoot) return content.innerHTML;
+  // A deck keeps its shadow root as a declarative one.
+  const root = deck.shadowRoot;
+  const katexCss = opts && opts.katexCssUrl;
+  const link = katexCss ? `<link rel="stylesheet" href="${escapeHtml(katexCss)}">` : "";
+  const styles = [...root.querySelectorAll("style")].map((st) => `<style>${st.textContent.replace(/<\/style/gi, "<\\/style")}</style>`).join("");
+  // Without the WebKit scaling fix: other browsers scale slides themselves.
+  const copy = root.querySelector(".deck-body").cloneNode(true);
+  for (const sec of copy.querySelectorAll("svg[data-marpit-svg] > foreignObject > section")) {
+    sec.style.removeProperty("transform");
+    sec.style.removeProperty("transform-origin");
+  }
+  for (const svg of copy.querySelectorAll("svg[data-marpit-svg]")) svg.style.removeProperty("transform");
+  const body = copy.innerHTML;
+  return `<section class="md-chunk marp-deck"><template shadowrootmode="open">${link}${styles}<div class="deck-body">${body}</div></template></section>`;
 }
 
 window.GME = {
@@ -1177,6 +1385,7 @@ window.GME = {
   renderMarkdown,
   renderAllDiagrams,
   configure,
+  setMarpThemes,
   setTheme,
   scrollToLine,
   scrollToAnchor,

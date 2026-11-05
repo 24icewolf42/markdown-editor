@@ -18,3 +18,7 @@ highlight.js 11.12.0 — BSD-3-Clause
 dompurify 3.4.17 — (MPL-2.0 OR Apache-2.0)
 morphdom 2.7.8 — MIT
 mermaid 12.3.0 — MIT
+@marp-team/marp-core 4.4.0 — MIT
+@marp-team/marpit 3.2.3 — MIT
+postcss-selector-parser 7.1.7 — MIT
+xss 1.0.17 — MIT

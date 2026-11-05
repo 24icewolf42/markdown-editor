@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Marp slide decks: Markdown plus Marp's directives, slide separators and
+  image keywords. The editor switches a document to this language when its
+  front matter says `marp: true`.
+-->
+<language id="marp" name="Marp" version="2.0" _section="Markup" hidden="true">
+  <metadata>
+    <property name="block-comment-start">&lt;!--</property>
+    <property name="block-comment-end">--&gt;</property>
+    <property name="suggested-suffix">.md</property>
+  </metadata>
+
+  <styles>
+    <style id="directive" name="Directive" map-to="def:keyword"/>
+    <style id="directive-comment" name="Directive Comment" map-to="def:comment"/>
+    <style id="slide-separator" name="Slide Separator" map-to="def:preprocessor"/>
+    <style id="image-keyword" name="Image Keyword" map-to="def:keyword"/>
+    <style id="image-marker" name="Image Marker" map-to="def:link-symbol"/>
+    <style id="url" name="URL" map-to="def:link-destination"/>
+  </styles>
+
+  <definitions>
+    <define-regex id="directive-name">_?(?:marp|theme|style|headingDivider|size|math|title|description|author|image|keywords|url|lang|paginate|header|footer|class|backgroundColor|backgroundImage|backgroundPosition|backgroundRepeat|backgroundSize|color|transition)</define-regex>
+
+    <!-- Global directives in the front matter, e.g. `theme: gaia`. -->
+    <context id="directive-key" class="no-spell-check">
+      <match>^(\%{directive-name})[ \t]*:(.*)$</match>
+      <include>
+        <context sub-pattern="1" style-ref="directive"/>
+      </include>
+    </context>
+
+    <!-- Directive comments such as `_class: lead` and `fit`. -->
+    <context id="directive-comment" style-ref="directive-comment" class="no-spell-check">
+      <start>&lt;!--</start>
+      <end>--&gt;</end>
+      <include>
+        <context id="comment-directive" class="no-spell-check">
+          <match>(?&lt;![\w-])(\%{directive-name})[ \t]*:</match>
+          <include>
+            <context sub-pattern="1" style-ref="directive"/>
+          </include>
+        </context>
+        <context id="fit" style-ref="directive">
+          <match>(?&lt;![\w-])fit(?![\w-])</match>
+        </context>
+      </include>
+    </context>
+
+    <!-- Slides are separated by thematic breaks. -->
+    <context id="slide-separator" style-ref="slide-separator">
+      <match>^ {0,3}(?:-[ \t]*){3,}$|^ {0,3}(?:\*[ \t]*){3,}$|^ {0,3}(?:_[ \t]*){3,}$</match>
+    </context>
+
+    <!-- `![bg left:40% sepia](image.jpg)` -->
+    <context id="image-with-keywords">
+      <match>(!)\[([^\]]*(?&lt;![\w-])(?:bg|fit|contain|cover|auto|w|h|width|height|left|right|vertical|blur|brightness|contrast|drop-shadow|grayscale|hue-rotate|invert|opacity|saturate|sepia)(?![\w-])[^\]]*)\]\(([^)]*)\)</match>
+      <include>
+        <context sub-pattern="1" style-ref="image-marker"/>
+        <context sub-pattern="2" style-ref="image-keyword"/>
+        <context sub-pattern="3" class="no-spell-check" style-ref="url"/>
+      </include>
+    </context>
+
+    <context id="marp">
+      <include>
+        <context ref="directive-key"/>
+        <context ref="directive-comment"/>
+        <context ref="slide-separator"/>
+        <context ref="image-with-keywords"/>
+        <context ref="markdown:markdown"/>
+      </include>
+    </context>
+  </definitions>
+</language>
