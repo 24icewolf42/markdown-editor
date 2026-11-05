@@ -184,3 +184,12 @@ data/                            desktop entry, AppStream metainfo
 Settings live in `~/.config/markdown-editor/settings.json` (versions before 0.4.0 used
 `~/.config/gnome-markdown-editor/`; it is read as long as the new file does not exist yet, and the
 first changed setting creates the new file).
+
+## License
+
+Markdown Editor is free software: you can redistribute it and/or modify it under the terms of the
+GNU General Public License as published by the Free Software Foundation, either version 3 of the
+License, or (at your option) any later version. See [LICENSE](LICENSE).
+
+The preview bundles third-party components under their own licenses, listed in
+`markdown_editor/web/vendor/THIRD-PARTY-NOTICES.txt` and shown in the About dialog.
