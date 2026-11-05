@@ -49,15 +49,15 @@
   <screenshots>
     <screenshot type="default">
       <caption>The editor with the live preview</caption>
-      <image>https://raw.githubusercontent.com/24icewolf42/markdown-editor/main/docs/screenshot-light.png</image>
+      <image>https://raw.githubusercontent.com/24icewolf42/markdown-editor/v0.4.0/docs/screenshot-light.png</image>
     </screenshot>
     <screenshot>
       <caption>Dark style</caption>
-      <image>https://raw.githubusercontent.com/24icewolf42/markdown-editor/main/docs/screenshot-dark.png</image>
+      <image>https://raw.githubusercontent.com/24icewolf42/markdown-editor/v0.4.0/docs/screenshot-dark.png</image>
     </screenshot>
     <screenshot>
       <caption>A Marp slide deck</caption>
-      <image>https://raw.githubusercontent.com/24icewolf42/markdown-editor/main/docs/screenshot-marp.png</image>
+      <image>https://raw.githubusercontent.com/24icewolf42/markdown-editor/v0.4.0/docs/screenshot-marp.png</image>
     </screenshot>
   </screenshots>
   <keywords>
@@ -68,6 +68,16 @@
     <keyword>slides</keyword>
   </keywords>
   <releases>
+    <release version="0.4.0" date="2026-11-05">
+      <description>
+        <p>Marp slide decks, and a new application ID.</p>
+        <ul>
+          <li>Documents with “marp: true” in their front matter preview as Marp slides, with highlighting for directives and slide separators.</li>
+          <li>The application ID is now io.github._24icewolf42.markdown-editor and the command is markdown-editor. Settings from earlier versions carry over, except in the Flatpak; uninstall the old Flatpak (io.github.gnome_markdown_editor) separately.</li>
+          <li>The Flatpak only has access to the home folder instead of the whole file system.</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.3.0" date="2026-11-05">
       <description>
         <p>Releases now ship download artifacts.</p>
