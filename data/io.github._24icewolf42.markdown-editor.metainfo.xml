@@ -49,15 +49,15 @@
   <screenshots>
     <screenshot type="default">
       <caption>The editor with the live preview</caption>
-      <image>https://raw.githubusercontent.com/24icewolf42/markdown-editor/v0.4.0/docs/screenshot-light.png</image>
+      <image>https://raw.githubusercontent.com/24icewolf42/markdown-editor/v0.4.1/docs/screenshot-light.png</image>
     </screenshot>
     <screenshot>
       <caption>Dark style</caption>
-      <image>https://raw.githubusercontent.com/24icewolf42/markdown-editor/v0.4.0/docs/screenshot-dark.png</image>
+      <image>https://raw.githubusercontent.com/24icewolf42/markdown-editor/v0.4.1/docs/screenshot-dark.png</image>
     </screenshot>
     <screenshot>
       <caption>A Marp slide deck</caption>
-      <image>https://raw.githubusercontent.com/24icewolf42/markdown-editor/v0.4.0/docs/screenshot-marp.png</image>
+      <image>https://raw.githubusercontent.com/24icewolf42/markdown-editor/v0.4.1/docs/screenshot-marp.png</image>
     </screenshot>
   </screenshots>
   <keywords>
@@ -68,6 +68,15 @@
     <keyword>slides</keyword>
   </keywords>
   <releases>
+    <release version="0.4.1" date="2026-11-05">
+      <description>
+        <p>License text and a Flatpak built from source.</p>
+        <ul>
+          <li>The license text (GPL-3.0-or-later) ships with the source and the Flatpak.</li>
+          <li>The Flatpak builds the preview from source with Node.js instead of using the prebuilt bundle.</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.4.0" date="2026-11-05">
       <description>
         <p>Marp slide decks, and a new application ID.</p>
