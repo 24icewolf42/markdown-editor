@@ -14,7 +14,10 @@ gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
 gi.require_version("GtkSource", "5")
 gi.require_version("WebKit", "6.0")
-gi.require_version("Spelling", "1")
+try:
+    gi.require_version("Spelling", "1")  # optional: spell checking
+except ValueError:
+    pass
 
 from gi.repository import Adw, Gdk, Gio, GLib, Gtk, GtkSource, Pango  # noqa: E402
 

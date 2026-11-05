@@ -2,11 +2,13 @@ PREFIX ?= $(HOME)/.local
 DATADIR := $(PREFIX)/share
 APPDIR := $(DATADIR)/gnome-markdown-editor
 APP_ID := io.github.gnome_markdown_editor
+# 0 skips the desktop/icon cache refresh (Flatpak builds export their own).
+UPDATE_CACHES ?= 1
 # Machine-specific paths (SMOKE_BIG, DIRS) can live in an untracked local.mk.
 -include local.mk
 SMOKE_BIG ?=
 
-.PHONY: run test test-unit test-render test-gui test-corpus vendor install uninstall
+.PHONY: run test test-unit test-render test-gui test-corpus vendor install uninstall appimage flatpak
 
 run:
 	./bin/gnome-markdown-editor
@@ -44,10 +46,25 @@ install:
 	install -Dm644 data/$(APP_ID).metainfo.xml $(DATADIR)/metainfo/$(APP_ID).metainfo.xml
 	install -Dm644 gnome_markdown_editor/data/icons/hicolor/scalable/apps/$(APP_ID).svg $(DATADIR)/icons/hicolor/scalable/apps/$(APP_ID).svg
 	install -Dm644 gnome_markdown_editor/data/icons/hicolor/symbolic/apps/$(APP_ID)-symbolic.svg $(DATADIR)/icons/hicolor/symbolic/apps/$(APP_ID)-symbolic.svg
+	install -Dm644 gnome_markdown_editor/data/icons/hicolor/256x256/apps/$(APP_ID).png $(DATADIR)/icons/hicolor/256x256/apps/$(APP_ID).png
+ifneq ($(UPDATE_CACHES),0)
 	-update-desktop-database -q $(DATADIR)/applications
 	-gtk-update-icon-cache -q -t $(DATADIR)/icons/hicolor
+endif
 
 uninstall:
 	rm -rf $(APPDIR) $(PREFIX)/bin/gnome-markdown-editor
 	rm -f $(DATADIR)/applications/$(APP_ID).desktop $(DATADIR)/metainfo/$(APP_ID).metainfo.xml
 	rm -f $(DATADIR)/icons/hicolor/scalable/apps/$(APP_ID).svg $(DATADIR)/icons/hicolor/symbolic/apps/$(APP_ID)-symbolic.svg
+	rm -f $(DATADIR)/icons/hicolor/256x256/apps/$(APP_ID).png
+
+# Release artifacts (CI builds both on every push; a vX.Y.Z tag publishes them).
+VERSION := $(shell sed -n 's/^VERSION = "\(.*\)"$$/\1/p' gnome_markdown_editor/__init__.py)
+
+appimage:
+	packaging/appimage/build.sh
+
+flatpak:
+	flatpak-builder --user --force-clean --repo=build/flatpak-repo build/flatpak packaging/flatpak/$(APP_ID).yml
+	mkdir -p dist
+	flatpak build-bundle build/flatpak-repo dist/gnome-markdown-editor-$(VERSION)-x86_64.flatpak $(APP_ID)

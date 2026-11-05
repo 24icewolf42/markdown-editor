@@ -1,0 +1,58 @@
+# Self-contained build on the GNOME runtime.
+#   flatpak-builder --user --install --force-clean build/flatpak packaging/flatpak/io.github.gnome_markdown_editor.yml
+id: io.github.gnome_markdown_editor
+runtime: org.gnome.Platform
+runtime-version: '51'
+sdk: org.gnome.Sdk
+command: gnome-markdown-editor
+finish-args:
+  - --device=dri
+  - --share=ipc
+  - --socket=fallback-x11
+  - --socket=wayland
+  # Remote images in documents.
+  - --share=network
+  # Links between documents, relative images and change monitoring need the
+  # files around the opened one, as in GNOME Text Editor.
+  - --filesystem=host
+  - --filesystem=xdg-run/gvfs
+  - --filesystem=xdg-run/gvfsd
+  - --talk-name=org.gtk.vfs.*
+  - --talk-name=org.freedesktop.FileManager1
+cleanup:
+  - /include
+  - /lib/pkgconfig
+  - /share/gir-1.0
+  - /share/doc
+  - '*.la'
+  - '*.a'
+modules:
+  - name: libspelling
+    buildsystem: meson
+    config-opts:
+      - -Dintrospection=enabled
+      - -Dvapi=false
+      - -Ddocs=false
+      - -Dsysprof=false
+    sources:
+      - type: archive
+        url: https://download.gnome.org/sources/libspelling/0.4/libspelling-0.4.10.tar.xz
+        sha256: 56e3f01a3a18b575beea4c34349f99cdaba316e1f7c271b1231f7bcf5d9af73b
+
+  - name: gnome-markdown-editor
+    buildsystem: simple
+    build-commands:
+      - make install PREFIX=/app UPDATE_CACHES=0
+    sources:
+      - type: dir
+        path: ../..
+        skip:
+          - .git
+          - build
+          - dist
+          - .flatpak-builder
+          - flatpak_app
+          - repo
+          - web-src/node_modules
+          - local.mk
+          - NOTES.local.md

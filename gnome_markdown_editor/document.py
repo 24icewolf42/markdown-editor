@@ -8,7 +8,12 @@ import time
 from gettext import gettext as _
 from pathlib import Path
 
-from gi.repository import Adw, Gio, GLib, GObject, Gtk, GtkSource, Spelling
+from gi.repository import Adw, Gio, GLib, GObject, Gtk, GtkSource
+
+try:  # libspelling is optional (e.g. AppImage on a host without it)
+    from gi.repository import Spelling
+except ImportError:
+    Spelling = None
 
 from . import markdown_utils as mu
 from .editor import MarkdownEditing
@@ -108,9 +113,11 @@ class DocumentPage(Gtk.Box):
         self.editing = MarkdownEditing(self.view, self.settings)
 
         # Spell checking (libspelling) ----------------------------------
-        self.spell_adapter = Spelling.TextBufferAdapter.new(self.buffer, Spelling.Checker.get_default())
-        self.view.set_extra_menu(self.spell_adapter.get_menu_model())
-        self.view.insert_action_group("spelling", self.spell_adapter)
+        self.spell_adapter = None
+        if Spelling is not None:
+            self.spell_adapter = Spelling.TextBufferAdapter.new(self.buffer, Spelling.Checker.get_default())
+            self.view.set_extra_menu(self.spell_adapter.get_menu_model())
+            self.view.insert_action_group("spelling", self.spell_adapter)
 
         self.scroller = Gtk.ScrolledWindow(hexpand=True, vexpand=True)
         self.scroller.set_child(self.view)
@@ -181,7 +188,8 @@ class DocumentPage(Gtk.Box):
         self.view.set_insert_spaces_instead_of_tabs(s.insert_spaces)
         self.view.set_auto_indent(s.auto_indent)
         self.buffer.set_highlight_matching_brackets(s.highlight_matching_brackets)
-        self.spell_adapter.set_enabled(s.spellcheck)
+        if self.spell_adapter is not None:
+            self.spell_adapter.set_enabled(s.spellcheck)
         self.map.set_visible(s.show_map)
         self.buffer.set_style_scheme(resolve_style_scheme(s.style_scheme))
 

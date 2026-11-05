@@ -1,0 +1,62 @@
+#!/bin/sh
+# AppImage entry point. The AppImage carries the application (Python code and
+# preview assets) and uses the system's GNOME stack: Python 3 with PyGObject,
+# GTK 4.12+, libadwaita 1.8+, GtkSourceView 5 and WebKitGTK 6.0 (libspelling
+# optional), i.e. a GNOME 49 or newer desktop. WebKitGTK is not relocatable,
+# so the self-contained build is the Flatpak bundle instead.
+HERE="$(dirname "$(readlink -f "$0")")"
+APPDIR="${APPDIR:-$HERE}"
+
+CHECK='
+import gi
+problems = []
+for ns, ver in (("Gtk", "4.0"), ("Adw", "1"), ("GtkSource", "5"), ("WebKit", "6.0")):
+    try:
+        gi.require_version(ns, ver)
+    except ValueError:
+        problems.append(f"{ns} {ver}")
+if not problems:
+    from gi.repository import Adw, Gtk
+    if (Gtk.get_major_version(), Gtk.get_minor_version()) < (4, 12):
+        problems.append("GTK 4.12 or newer")
+    if (Adw.get_major_version(), Adw.get_minor_version()) < (1, 8):
+        problems.append("libadwaita 1.8 or newer")
+print(", ".join(problems))
+'
+
+# Prefer the system interpreter: a pyenv/conda/venv python3 first on PATH
+# usually lacks PyGObject even when the system has it.
+PYTHON=""
+missing=""
+for candidate in /usr/bin/python3 python3; do
+    command -v "$candidate" >/dev/null 2>&1 || continue
+    if out="$("$candidate" -c "$CHECK" 2>/dev/null)"; then
+        PYTHON="$candidate"
+        missing="$out"
+        [ -z "$missing" ] && break
+    fi
+done
+[ -z "$PYTHON" ] && missing="Python 3 with PyGObject"
+
+if [ -n "$missing" ]; then
+    msg="Markdown Editor needs a GNOME 49 or newer desktop. Missing: $missing.
+
+Fedora 43+:  sudo dnf install python3-gobject gtk4 libadwaita gtksourceview5 webkitgtk6.0 libspelling
+Debian/Ubuntu (25.10+):  sudo apt install python3-gi gir1.2-gtk-4.0 gir1.2-adw-1 gir1.2-gtksource-5 gir1.2-webkit-6.0 gir1.2-spelling-1
+Arch:  sudo pacman -S python-gobject gtk4 libadwaita gtksourceview5 webkitgtk-6.0 libspelling
+
+On older systems use the Flatpak bundle from the same release: it is self-contained."
+    echo "$msg" >&2
+    if command -v zenity >/dev/null 2>&1; then
+        zenity --error --title="Markdown Editor" --text="$msg" 2>/dev/null
+    fi
+    exit 1
+fi
+
+export PYTHONPATH="$APPDIR/usr/share/gnome-markdown-editor${PYTHONPATH:+:$PYTHONPATH}"
+exec "$PYTHON" -c '
+import sys
+sys.argv[0] = "gnome-markdown-editor"
+from gnome_markdown_editor.application import main
+sys.exit(main())
+' "$@"

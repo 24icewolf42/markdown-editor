@@ -1,3 +1,6 @@
 __pycache__/
 *.pyc
 web-src/node_modules/
+build/
+dist/
+.flatpak-builder/

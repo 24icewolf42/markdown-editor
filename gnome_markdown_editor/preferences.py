@@ -85,7 +85,13 @@ class PreferencesDialog(Adw.PreferencesDialog):
         behaviour.add(_switch(s, "insert-spaces", _("Indent with Spaces")))
         behaviour.add(_switch(s, "auto-indent", _("Automatic Indentation")))
         behaviour.add(_switch(s, "smart-lists", _("Continue Lists"), _("Enter starts the next list item or quote line; Tab nests items")))
-        behaviour.add(_switch(s, "spellcheck", _("Check Spelling"), _("Code blocks and URLs are not checked")))
+        from .document import Spelling
+
+        spell = _switch(s, "spellcheck", _("Check Spelling"), _("Code blocks and URLs are not checked"))
+        if Spelling is None:
+            spell.set_sensitive(False)
+            spell.set_subtitle(_("Not available: libspelling is not installed"))
+        behaviour.add(spell)
 
         # Preview ------------------------------------------------------------
         page = Adw.PreferencesPage(title=_("Preview"), icon_name="view-reveal-symbolic")

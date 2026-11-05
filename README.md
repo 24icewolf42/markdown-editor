@@ -95,6 +95,24 @@ navigate: every link goes to the application.
 
 Remote images in a document still load, as in any Markdown viewer.
 
+## Download
+
+Each [GitHub release](https://github.com/24icewolf42/gnome-markdown-editor/releases) carries:
+
+- **`gnome-markdown-editor-<version>-x86_64.flatpak`** (recommended) — self-contained on the GNOME 51
+  runtime: `flatpak install --user gnome-markdown-editor-<version>-x86_64.flatpak` (the runtime comes
+  from Flathub).
+- **`gnome-markdown-editor-<version>-x86_64.AppImage`** — a few MB; uses the system's GNOME libraries,
+  so it needs a GNOME 49 or newer desktop (GTK 4.12+, libadwaita 1.8+, GtkSourceView 5, WebKitGTK 6.0,
+  PyGObject; libspelling optional). `chmod +x` it and run. On a system without them it says what to
+  install. WebKitGTK cannot be relocated into an AppImage, which is why the self-contained build is
+  the Flatpak.
+- `SHA256SUMS` for both.
+
+Releases are built by `.github/workflows/release.yml`: every push builds both artifacts after the
+tests; pushing a tag `vX.Y.Z` that matches `gnome_markdown_editor.VERSION` and has a `<release>` entry
+in the AppStream metainfo publishes them. Locally: `make appimage`, `make flatpak`.
+
 ## Requirements
 
 On Fedora, these packages are installed by default on Workstation:
