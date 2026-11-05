@@ -68,7 +68,11 @@ jobs:
         run: |
           flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
           flatpak install --user -y --noninteractive flathub org.flatpak.Builder
-          lint() { flatpak run --command=flatpak-builder-lint org.flatpak.Builder "$@"; }
+          # The linter's sandbox cannot write to the checkout: lint a copy.
+          work="$HOME/flathub-lint"
+          rm -rf "$work" && mkdir -p "$work" && cp -r packaging data "$work"/
+          cd "$work"
+          lint() { flatpak run --filesystem="$work" --command=flatpak-builder-lint org.flatpak.Builder "$@"; }
           lint manifest packaging/flatpak/io.github._24icewolf42.markdown-editor.yml
           lint appstream data/io.github._24icewolf42.markdown-editor.metainfo.xml
       - uses: flathub-infra/flatpak-github-actions/flatpak-builder@master
