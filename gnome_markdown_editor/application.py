@@ -66,7 +66,11 @@ SHORTCUTS = [
 
 class Application(Adw.Application):
     def __init__(self) -> None:
-        super().__init__(application_id=APP_ID, flags=Gio.ApplicationFlags.HANDLES_OPEN)
+        flags = Gio.ApplicationFlags.HANDLES_OPEN
+        if os.environ.get("GME_NON_UNIQUE"):
+            # Tests: never hand files to an instance the user is running.
+            flags |= Gio.ApplicationFlags.NON_UNIQUE
+        super().__init__(application_id=APP_ID, flags=flags)
         GLib.set_application_name(_("Markdown Editor"))
         self.settings = Settings.get()
         self._font_provider = Gtk.CssProvider()

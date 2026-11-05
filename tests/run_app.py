@@ -16,7 +16,7 @@ code = (
     "from gnome_markdown_editor.application import main;"
     "sys.exit(main(['gnome-markdown-editor', *sys.argv[1:]]))"
 )
-env = dict(os.environ, GME_SCREENSHOT=f"{out}:{delay}")
+env = dict(os.environ, GME_SCREENSHOT=f"{out}:{delay}", GME_NON_UNIQUE="1")
 p = subprocess.Popen([sys.executable, "-X", "faulthandler", "-c", code, *files], env=env,
                      stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
 try:

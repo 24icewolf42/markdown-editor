@@ -21,6 +21,19 @@ function walk(p, acc) {
   return acc;
 }
 const files = process.argv.slice(2).flatMap((p) => walk(p, []));
+function normalise(root) {
+  for (const el of root.querySelectorAll("[data-line],[data-task-line]")) {
+    el.removeAttribute("data-line");
+    el.removeAttribute("data-task-line");
+  }
+  for (const el of root.querySelectorAll(".carousel-controls")) el.remove(); // UI state
+  for (const el of root.querySelectorAll("[data-ready]")) {
+    el.removeAttribute("data-ready");
+  }
+  for (const sec of [...root.querySelectorAll("section.md-chunk")]) sec.replaceWith(...sec.childNodes);
+  return root.innerHTML.replace(/>\s+</g, "><").trim();
+}
+let chunkMismatch = [], changelogs = 0;
 let failures = 0, mathInline = [], mathBlocks = 0, alerts = 0, mermaid = 0, shortcodes = 0, footnotes = 0, tasks = 0, carousels = 0, fm = 0, mathErrors = [];
 const t0 = Date.now();
 for (const f of files) {
@@ -39,12 +52,21 @@ for (const f of files) {
     tasks += d.querySelectorAll(".task-list-item-checkbox").length;
     carousels += d.querySelectorAll(".carousel").length;
     fm += d.querySelectorAll(".front-matter").length;
+    // The chunked preview path must produce the same document.
+    GME.render(src);
+    const content = dom.window.document.getElementById("content");
+    changelogs += content.querySelectorAll("details.changelog").length;
+    const chunked = normalise(content.cloneNode(true));
+    const whole = dom.window.document.createElement("div");
+    whole.innerHTML = html;
+    if (normalise(whole) !== chunked) chunkMismatch.push(f);
     if (/<script/i.test(html)) { console.log("SCRIPT SURVIVED SANITIZE:", f); failures++; }
   } catch (e) {
     failures++;
     console.log("FAIL", f, e.stack.split("\n").slice(0, 3).join(" | "));
   }
 }
-console.log(JSON.stringify({ files: files.length, ms: Date.now() - t0, failures, mathInline: mathInline.length, mathBlocks, mathErrors: mathErrors.length, alerts, mermaid, shortcodes, footnotes, tasks, carousels, frontMatter: fm }));
+console.log(JSON.stringify({ files: files.length, ms: Date.now() - t0, failures, mathInline: mathInline.length, mathBlocks, mathErrors: mathErrors.length, alerts, mermaid, shortcodes, footnotes, tasks, carousels, frontMatter: fm, changelogs, chunkMismatch: chunkMismatch.length }));
+for (const f of chunkMismatch.slice(0, 10)) console.log("  chunk mismatch:", f);
 for (const m of mathInline.slice(0, 40)) console.log("  math:", m);
 for (const m of mathErrors.slice(0, 10)) console.log("  math-error:", m);

@@ -111,6 +111,7 @@ class OutlinePanel(Gtk.Box):
     def __init__(self) -> None:
         super().__init__(orientation=Gtk.Orientation.VERTICAL)
         self._headings = []
+        self._rows: dict[int, Gtk.ListBoxRow] = {}
         self._filter = ""
         self.search = Gtk.SearchEntry(placeholder_text=_("Filter headings"), margin_start=8, margin_end=8, margin_bottom=6)
         self.search.connect("search-changed", self._on_filter)
@@ -132,10 +133,16 @@ class OutlinePanel(Gtk.Box):
         self.set_headings(self._headings, force=True)
 
     def set_headings(self, headings, force: bool = False) -> None:
-        if not force and [(h.level, h.title, h.line) for h in headings] == [(h.level, h.title, h.line) for h in self._headings]:
-            return
+        # Rows only show level and title; line numbers are looked up through
+        # the index, so typing that only shifts lines rebuilds nothing.
+        same = len(headings) == len(self._headings) and all(
+            a.level == b.level and a.title == b.title for a, b in zip(headings, self._headings)
+        )
         self._headings = list(headings)
+        if same and not force:
+            return
         self.list.remove_all()
+        self._rows = {}
         min_level = min((h.level for h in headings), default=1)
         shown = 0
         for i, h in enumerate(headings):
@@ -152,19 +159,17 @@ class OutlinePanel(Gtk.Box):
                 label.add_css_class("heading")
             row = Gtk.ListBoxRow(child=label)
             row.heading_index = i
+            self._rows[i] = row
             self.list.append(row)
             shown += 1
         self.stack.set_visible_child_name("list" if shown else "empty")
 
     def select_index(self, index: int) -> None:
-        row = self.list.get_first_child()
-        while row is not None:
-            if isinstance(row, Gtk.ListBoxRow) and getattr(row, "heading_index", -2) == index:
-                if self.list.get_selected_row() is not row:
-                    self.list.select_row(row)
-                return
-            row = row.get_next_sibling()
-        self.list.unselect_all()
+        row = self._rows.get(index)
+        if row is None:
+            self.list.unselect_all()
+        elif self.list.get_selected_row() is not row:
+            self.list.select_row(row)
 
 
 class Window(Adw.ApplicationWindow):
@@ -874,19 +879,47 @@ class Window(Adw.ApplicationWindow):
         GLib.idle_add(lambda: (entry.grab_focus(), False)[1])
 
     def _with_rendered_preview(self, page: DocumentPage, fn) -> None:
-        """Run ``fn(preview)`` once the preview shows the current text."""
-        fresh = page.preview is None
+        """Run ``fn(preview)`` once the preview shows the current text and all diagrams.
+
+        Runs exactly once: after the diagrams are drawn, or after a timeout if
+        the page never reports back (reload, web process crash).
+        """
         preview = page._ensure_preview()
-        if not fresh and not page._preview_dirty:
-            fn(preview)
-            return
+        handlers: list[int] = []
+        state = {"done": False, "timer": 0}
 
-        def settled(*_):
-            preview.disconnect(hid)
+        def finish(*_):
+            if state["done"]:
+                return
+            state["done"] = True
+            for hid in handlers:
+                preview.disconnect(hid)
+            if state["timer"]:
+                GLib.source_remove(state["timer"])
             fn(preview)
 
-        hid = preview.connect("settled", settled)
-        page._render_now()
+        def on_timeout():
+            state["timer"] = 0
+            finish()
+            return GLib.SOURCE_REMOVE
+
+        def draw_all(*_):
+            # Only after the current text is on the page (a patch may have
+            # needed a full resync first).
+            preview.disconnect(handlers.pop(0))
+            preview.render_all_diagrams()
+
+        handlers.append(preview.connect("diagrams-complete", finish))
+        state["timer"] = GLib.timeout_add_seconds(60, on_timeout)
+        if page._preview_dirty or not preview._ready:
+            handlers.insert(0, preview.connect("rendered", draw_all))
+            page._render_now()
+            if preview._ready and not preview.last_render_posted:
+                # The page already had this text (e.g. an edit was undone).
+                preview.disconnect(handlers.pop(0))
+                preview.render_all_diagrams()
+        else:
+            preview.render_all_diagrams()
 
     def print_current(self) -> None:
         page = self.current_page

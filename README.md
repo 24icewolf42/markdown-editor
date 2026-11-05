@@ -58,6 +58,7 @@ GTK 4, libadwaita, GtkSourceView 5 and libspelling, and renders a live preview i
 | Math (KaTeX) | `$inline$` and `$$display$$` (pandoc rules, so `$5 and $10` stays text), plus `math` fences |
 | Syntax highlighting | All highlight.js languages, plus CDDL, Rego, ASN.1 and CBOR diagnostic notation |
 | Front matter | YAML `---` (shown as a table) and TOML `+++` (shown raw), collapsed by default |
+| Changelogs | Sections titled *Changelog*, *Revision History*, *Release Notes* and similar, or titled with "changes"/"history" and listing versions or dates, fold into a collapsed block that shows the entry count. Only the lists and tables right after the heading fold; prose after them stays visible. Links to the section open it, printing expands it, and Preferences → Preview turns folding off. |
 | Antigravity carousels | `` ````carousel `` fences with `<!-- slide -->` separators |
 | Footnotes, definition lists, abbreviations | `[^1]`, `Term` / `: definition`, `*[HTML]: …` |
 | `==mark==`, `++ins++`, `~sub~`, `^sup^` | |
@@ -67,6 +68,23 @@ GTK 4, libadwaita, GtkSourceView 5 and libspelling, and renders a live preview i
 
 Heading anchors follow GitHub's and Hugo's `github` style, so links such as
 `#43-record-envelope` resolve as they do on GitHub and on Hugo sites.
+
+### Large documents
+
+The preview stays responsive on multi-megabyte documents. A 2 MB, 9,400-line specification with
+40 diagrams is the reference case:
+
+- The document renders in sections split at top-level headings. An edit re-renders only the
+  section it touches; the others keep their DOM, including drawn diagrams and open sections.
+- For large files, the editor sends the page only the changed text, not the whole document.
+- Mermaid diagrams render as they come near the viewport, one at a time, so scrolling keeps working.
+  Printing and export render all of them first.
+- Off-screen sections skip layout (`content-visibility`), after one full layout that records their
+  real heights, so the scrollbar and scroll sync stay accurate.
+- Scroll sync measures a section only when it scrolls there, and caches the result.
+- The outline list is rebuilt only when headings change, not when lines only shift.
+
+`python3 tests/profile_preview.py FILE` measures render, layout and scroll-sync times for a file.
 
 ### Security model
 

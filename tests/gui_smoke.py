@@ -131,11 +131,14 @@ class Driver:
         yield lambda: not page.props.loading and page.preview is not None and page.preview._ready
         settled = {"n": 0}
         page.preview.connect("settled", lambda *_: settled.__setitem__("n", settled["n"] + 1))
-        yield lambda: settled["n"] > 0
+        drawn = {}
+        page.preview.connect("diagrams-complete", lambda *_: drawn.setdefault("ok", True))
+        page.preview.render_all_diagrams()
+        yield lambda: "ok" in drawn
         yield 0.5
         check("loads file", page.get_text().startswith("---\ntitle: Showcase"))
         check("not modified after load", not page.props.modified)
-        check("outline parsed", [h.anchor for h in page.headings] == ["showcase", "links"], str([h.anchor for h in page.headings]))
+        check("outline parsed", [h.anchor for h in page.headings][:2] == ["showcase", "links"], str([h.anchor for h in page.headings]))
 
         box = self.js(page, "document.getElementById('content').innerHTML")
         yield lambda: "v" in box
@@ -157,9 +160,14 @@ class Driver:
             ("shortcode badge", 'class="shortcode"'),
             ("explicit heading id", 'id="showcase"'),
             ("mark/sub/sup/ins", "<mark>"),
+            ("collapsed changelog", '<details class="changelog" data-changelog="changelog"><summary><h2'),
+            ("changelog entry count", "2 entries"),
+            ("collapsed release table", 'data-changelog="release-history-of-the-widget"'),
         ]:
             check(f"preview renders {name}", needle in html)
         check("mermaid without error", "mermaid-error" not in html)
+        check("version-less list is not a changelog", 'data-changelog="changes-in-behaviour"' not in html)
+        check("prose after changelog stays visible", html.index("Prose after the changelog") > html.index("</details>", html.index('data-changelog="changelog"')))
         self.shot("01-showcase-light")
 
         # Task toggle from the preview -------------------------------------
@@ -216,7 +224,7 @@ class Driver:
         page.save(None, lambda ok: saved.__setitem__("ok", ok))
         yield lambda: "ok" in saved
         check("save succeeds", saved["ok"] and not page.props.modified)
-        check("saved content on disk", show.read_text().rstrip().endswith("- [Links](#links)"))
+        check("saved content on disk", "- [Links](#links)" in show.read_text())
 
         # External change auto-reload ---------------------------------------
         show.write_text(show.read_text() + "\nExternal edit line\n")
@@ -281,15 +289,31 @@ class Driver:
             box = self.js(big, f"(() => {{ const t = performance.now(); GME.render({json.dumps(text)}); return String(performance.now() - t); }})()")
             yield lambda: "v" in box
             check("big doc re-render time", True, f"{float(box['v']):.0f} ms")
+            # Diagrams render lazily near the viewport; force the rest.
+            box = self.js(big, "String(document.querySelectorAll('.mermaid svg').length)")
+            yield lambda: "v" in box
+            check("big doc renders only nearby diagrams first", True, f"{box['v']} drawn before scrolling")
             ok = {}
-            big.preview.connect("settled", lambda *_: ok.setdefault("t", time.monotonic()))
+            t = time.monotonic()
+            big.preview.connect("diagrams-complete", lambda *_: ok.setdefault("t", time.monotonic()))
+            big.preview.render_all_diagrams()
             yield lambda: "t" in ok
+            check("big doc all diagrams", True, f"{ok['t'] - t:.1f}s")
             box = self.js(big, "String(document.querySelectorAll('.mermaid svg').length) + '/' + document.querySelectorAll('.mermaid').length + ' errors ' + document.querySelectorAll('.mermaid-error').length")
             yield lambda: "v" in box
             check("big doc mermaid diagrams", "errors 0" in box["v"], box["v"])
             t = time.monotonic()
             big.buffer.insert(big.buffer.get_start_iter(), "x")
             check("big doc keystroke latency", time.monotonic() - t < 0.1, f"{(time.monotonic() - t) * 1000:.0f} ms")
+            # Large documents travel as patches; the page must end up with
+            # exactly the editor's text (UTF-16 offsets, astral characters).
+            mid = big.buffer.get_iter_at_offset(big.buffer.get_char_count() // 2)
+            big.buffer.insert(mid, "🔗 é\n")
+            big.buffer.delete(*[big.buffer.get_iter_at_offset(o) for o in (10, 14)])
+            yield 1.5
+            src = self.js(big, "GME.source()")
+            yield lambda: "v" in src
+            check("big doc patches keep page in sync", src["v"] == big.get_text(), f"{len(src['v'])} vs {len(big.get_text())}")
             big.goto_line(big.buffer.get_line_count() // 2)
             yield 1.5
             self.shot("03-big-doc")
@@ -306,8 +330,9 @@ class Driver:
         broken.buffer.set_text("# Broken\n\n```mermaid\nflowchart LR\n  A -->\n```\n")
         got = {}
         yield lambda: broken.preview is not None and broken.preview._ready
-        broken.preview.connect("settled", lambda *_: got.setdefault("ok", True))
+        broken.preview.connect("diagrams-complete", lambda *_: got.setdefault("ok", True))
         broken._render_now()
+        broken.preview.render_all_diagrams()
         yield lambda: "ok" in got
         box = self.js(broken, "String(document.querySelectorAll('.mermaid-error').length)")
         yield lambda: "v" in box

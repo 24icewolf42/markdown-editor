@@ -81,7 +81,11 @@ h3 { font-size: 1.25em; }
 h4 { font-size: 1.05em; }
 h5 { font-size: 0.95em; }
 h6 { font-size: 0.9em; color: var(--muted); }
+#content > .md-chunk:first-child > :first-child,
 #content > :first-child { margin-top: 0; }
+.md-chunk { display: block; contain-intrinsic-size: auto 400px; }
+#content.cv > .md-chunk { content-visibility: auto; }
+@media print { #content.cv > .md-chunk { content-visibility: visible; } }
 
 .heading-anchor {
   margin-left: 0.35em;
@@ -243,6 +247,37 @@ html.dark .markdown-alert-caution { --alert: #f66151; }
 .fm-chip { display: inline-block; padding: 0 0.5em; border-radius: 99px; background: color-mix(in srgb, var(--accent) 15%, transparent); margin: 1px 0; }
 .fm-raw { margin: 0; }
 
+/* Changelog sections (folded by default) ------------------------------- */
+
+details.changelog { margin: 0 0 1em; }
+details.changelog > summary {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75em;
+  cursor: pointer;
+  list-style: none;
+}
+details.changelog > summary::-webkit-details-marker { display: none; }
+details.changelog > summary::before {
+  content: "▸";
+  color: var(--muted);
+  width: 1em;
+  flex: none;
+  transition: transform 120ms;
+}
+details.changelog[open] > summary::before { transform: rotate(90deg); }
+details.changelog > summary > :is(h1, h2, h3, h4, h5, h6) { margin: 0.6em 0; display: inline-block; border: 0; padding: 0; flex: 1; }
+.changelog-count {
+  font-size: 0.8em;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 99px;
+  padding: 0 0.6em;
+  white-space: nowrap;
+}
+details.changelog:not([open]) > summary { border-bottom: 1px dashed var(--border); }
+details.changelog[open] > summary { margin-bottom: 0.5em; }
+
 /* Shortcodes, embeds ------------------------------------------------------ */
 
 .shortcode {
@@ -372,7 +407,8 @@ html.dark .markdown-alert-caution { --alert: #f66151; }
 
 @media print {
   body { padding: 0; }
-  .code-copy, .heading-anchor, .carousel-controls { display: none !important; }
+  .code-copy, .heading-anchor, .carousel-controls, .changelog-count { display: none !important; }
+  details.changelog > summary::before { display: none; }
   .carousel-track { display: block; overflow: visible; }
   .carousel-slide { page-break-inside: avoid; }
   pre, .mermaid, table, img { page-break-inside: avoid; }

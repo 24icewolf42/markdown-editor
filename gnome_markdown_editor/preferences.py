@@ -97,6 +97,7 @@ class PreferencesDialog(Adw.PreferencesDialog):
         group.add(_switch(s, "sync-scroll", _("Synchronize Scrolling"), _("Keep the preview at the part of the document being edited")))
         group.add(_spin(s, "preview-font-size", _("Text Size"), 9, 32, _("In pixels; zoom applies on top")))
         group.add(_switch(s, "preview-full-width", _("Full Width"), _("Use the whole pane instead of a readable line length")))
+        group.add(_switch(s, "collapse-changelogs", _("Collapse Changelogs"), _("Fold changelog and revision history sections until expanded")))
 
         # Files --------------------------------------------------------------
         page = Adw.PreferencesPage(title=_("Files"), icon_name="document-open-symbolic")

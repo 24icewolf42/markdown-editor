@@ -6,15 +6,19 @@ APP_ID := io.github.gnome_markdown_editor
 -include local.mk
 SMOKE_BIG ?=
 
-.PHONY: run test test-unit test-gui test-corpus vendor install uninstall
+.PHONY: run test test-unit test-render test-gui test-corpus vendor install uninstall
 
 run:
 	./bin/gnome-markdown-editor
 
-test: test-unit test-gui
+test: test-unit test-render test-gui
 
 test-unit:
 	python3 -m unittest discover tests -v
+
+# Section-by-section preview rendering must match whole-document rendering.
+test-render:
+	cd web-src && node test-chunks.mjs
 
 test-gui:
 	python3 tests/gui_smoke.py $(if $(SMOKE_BIG),$(if $(wildcard $(SMOKE_BIG)),--big $(SMOKE_BIG)))

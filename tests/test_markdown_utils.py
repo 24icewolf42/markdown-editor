@@ -80,6 +80,8 @@ class MiscTests(unittest.TestCase):
 
     def test_word_count(self):
         self.assertEqual(mu.word_count("---\ntitle: a b\n---\nOne two-three four's"), 3)
+        # Markdown syntax is not counted.
+        self.assertEqual(mu.word_count("# Head\n\n| a | b |\n| --- | --- |\n\n```py\nx = 1\n```\n- item"), 7)
 
 
 if __name__ == "__main__":

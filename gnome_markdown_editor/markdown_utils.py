@@ -318,6 +318,11 @@ def format_table(lines: list[str]) -> list[str] | None:
 # Statistics
 
 
+WORD_RE = re.compile(r"\w[\w’'-]*")
+
+
 def word_count(text: str) -> int:
-    body = text[FRONT_MATTER_RE.match(text).end() :] if FRONT_MATTER_RE.match(text) else text
-    return len(re.findall(r"[\w’'-]+", body))
+    """Words of prose: runs starting with a letter or digit, so Markdown
+    syntax (#, |, ---, ```) does not count."""
+    m = FRONT_MATTER_RE.match(text)
+    return sum(1 for _ in WORD_RE.finditer(text, m.end() if m else 0))

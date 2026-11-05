@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import bisect
 import os
 import time
 from gettext import gettext as _
@@ -62,6 +63,7 @@ class DocumentPage(Gtk.Box):
         global _untitled_counter
         self.settings = Settings.get()
         self.headings: list[mu.Heading] = []
+        self._heading_lines: list[int] = []
         self.word_count = 0
         self._render_source = 0
         self._outline_source = 0
@@ -501,13 +503,16 @@ class DocumentPage(Gtk.Box):
             self._schedule_render()
         if self._outline_source:
             GLib.source_remove(self._outline_source)
-        self._outline_source = GLib.timeout_add(350, self._update_outline)
+        # Outline and word count scan the whole text: wait longer on big files.
+        self._outline_source = GLib.timeout_add(350 + self.buffer.get_char_count() // 8000, self._update_outline)
 
     def _schedule_render(self, immediate: bool = False) -> None:
         if self._render_source:
             GLib.source_remove(self._render_source)
         size = self.buffer.get_char_count()
-        delay = 0 if immediate else min(900, 60 + size // 1500)
+        # Rendering re-does only the edited section, so even multi-megabyte
+        # documents re-render quickly after a pause in typing.
+        delay = 0 if immediate else min(400, 60 + size // 8000)
         self._render_source = GLib.timeout_add(delay, self._render_now)
 
     def _render_now(self) -> bool:
@@ -521,6 +526,7 @@ class DocumentPage(Gtk.Box):
         self._outline_source = 0
         text = self.get_text()
         self.headings = mu.parse_headings(text)
+        self._heading_lines = [h.line for h in self.headings]
         self.word_count = mu.word_count(text)
         self.emit("outline-changed")
         return GLib.SOURCE_REMOVE
@@ -563,13 +569,7 @@ class DocumentPage(Gtk.Box):
 
     def current_heading_index(self) -> int:
         line = self.buffer.get_iter_at_mark(self.buffer.get_insert()).get_line()
-        idx = -1
-        for i, h in enumerate(self.headings):
-            if h.line <= line:
-                idx = i
-            else:
-                break
-        return idx
+        return bisect.bisect_right(self._heading_lines, line) - 1
 
     def _editor_top_line(self) -> float:
         vadj = self.scroller.get_vadjustment()

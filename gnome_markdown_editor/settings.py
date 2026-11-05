@@ -43,6 +43,7 @@ SCHEMA: dict[str, tuple[type, object]] = {
     "preview-font-size": (int, 15),
     "preview-full-width": (bool, False),
     "preview-position": (str, "right"),  # right | left
+    "collapse-changelogs": (bool, True),
     # Behaviour
     "restore-session": (bool, True),
     "auto-reload": (bool, True),

@@ -63,3 +63,22 @@ Hidden **content**.
 
 - [Same-document anchor](#showcase)
 - [Other document](other.md#second-section)
+
+## Changelog
+
+- **v0.2 (2026-11-05)** — Added the changelog fixture.
+- **v0.1 (2026-11-01)** — Initial version.
+
+Prose after the changelog stays visible.
+
+## Release history of the widget
+
+| Version | Date       | Notes   |
+| ------- | ---------- | ------- |
+| 1.1     | 2026-10-01 | Fixes   |
+| 1.0     | 2026-09-01 | Initial |
+
+## Changes in behaviour
+
+- Not a changelog: these entries have no versions.
+- Another plain entry.

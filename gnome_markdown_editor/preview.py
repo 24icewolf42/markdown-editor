@@ -55,6 +55,25 @@ def _shell_html() -> str:
 """
 
 
+def _edit_range(old: str, new: str) -> tuple[int, int, str]:
+    """(start, removed length, inserted text) turning ``old`` into ``new``."""
+    n = min(len(old), len(new))
+    block = 4096
+    i = 0
+    while i + block <= n and old[i : i + block] == new[i : i + block]:
+        i += block
+    while i < n and old[i] == new[i]:
+        i += 1
+    limit = n - i
+    j = 0
+    lo, ln = len(old), len(new)
+    while j + block <= limit and old[lo - j - block : lo - j] == new[ln - j - block : ln - j]:
+        j += block
+    while j < limit and old[lo - 1 - j] == new[ln - 1 - j]:
+        j += 1
+    return i, lo - i - j, new[i : ln - j]
+
+
 class Preview(Gtk.Box):
     """Rendered view of the document. Signals carry host-relevant events."""
 
@@ -67,6 +86,8 @@ class Preview(Gtk.Box):
         "rendered": (GObject.SignalFlags.RUN_LAST, None, ()),
         # Emitted once asynchronous work (Mermaid diagrams) has finished.
         "settled": (GObject.SignalFlags.RUN_LAST, None, ()),
+        # Every diagram is drawn, after render_all_diagrams().
+        "diagrams-complete": (GObject.SignalFlags.RUN_LAST, None, ()),
     }
 
     def __init__(self) -> None:
@@ -78,6 +99,9 @@ class Preview(Gtk.Box):
         self._pending_line: float | None = None
         self._base_uri = Path.home().as_uri() + "/"
         self._last_text: str | None = None
+        self._sent_text: str | None = None  # the source the page holds
+        self._render_all_pending = False
+        self.last_render_posted = False
 
         manager = WebKit.UserContentManager()
         manager.register_script_message_handler("gme", None)
@@ -106,7 +130,7 @@ class Preview(Gtk.Box):
         style = Adw.StyleManager.get_default()
         style.connect("notify::dark", lambda *_: self._apply_theme())
         style.connect("notify::accent-color", lambda *_: self._apply_theme())
-        for key in ("preview-font-size", "preview-full-width"):
+        for key in ("preview-font-size", "preview-full-width", "collapse-changelogs"):
             self.settings.connect(f"notify::{key}", lambda *_: self._apply_config())
         self.settings.connect("notify::zoom", lambda *_: self._apply_zoom())
         self._apply_zoom()
@@ -126,6 +150,7 @@ class Preview(Gtk.Box):
 
     def _load_shell(self) -> None:
         self._ready = False
+        self._sent_text = None
         self.webview.load_html(_shell_html(), self._base_uri)
 
     def _on_crashed(self, _view, reason) -> None:
@@ -150,11 +175,33 @@ class Preview(Gtk.Box):
         self.webview.evaluate_javascript(code, -1, None, None, None, done)
 
     def render(self, text: str) -> None:
+        self.last_render_posted = True
         self._last_text = text
         if not self._ready:
             self._pending_text = text
             return
-        self._js(f"GME.render({json.dumps(text)})")
+        sent, self._sent_text = self._sent_text, text
+        if sent is None or len(text) < 20000:
+            self._js(f"GME.render({json.dumps(text)})")
+            return
+        if sent == text:
+            self.last_render_posted = False  # nothing changed: no "rendered" follows
+            return
+        # Large documents: send only the changed range. Offsets are in UTF-16
+        # code units, as JavaScript strings count them.
+        start, removed, inserted = _edit_range(sent, text)
+        u16 = lambda s: len(s.encode("utf-16-le")) // 2  # noqa: E731
+        self._js(
+            f"GME.renderPatch({u16(sent[:start])}, {u16(sent[start:start + removed])}, "
+            f"{json.dumps(inserted)}, {u16(text)})"
+        )
+
+    def render_all_diagrams(self) -> None:
+        """Render every Mermaid diagram now; ``diagrams-complete`` follows."""
+        if not self._ready:
+            self._render_all_pending = True
+            return
+        self._js("GME.renderAllDiagrams()")
 
     def scroll_to_line(self, line: float) -> None:
         if not self._ready:
@@ -205,6 +252,7 @@ class Preview(Gtk.Box):
             "theme": self._theme(),
             "fontSize": self.settings.props.preview_font_size,
             "maxWidth": not self.settings.props.preview_full_width,
+            "collapseChangelogs": self.settings.props.collapse_changelogs,
             "mermaidUrl": (VENDOR_DIR / "mermaid.min.js").as_uri(),
         }
         if accent is not None:
@@ -246,8 +294,19 @@ class Preview(Gtk.Box):
                 self.scroll_to_line(line)
             self._flush_anchor()
             self.emit("rendered")
+            if self._render_all_pending:
+                self._render_all_pending = False
+                self.render_all_diagrams()
+        elif kind == "all-diagrams":
+            self.emit("diagrams-complete")
+        elif kind == "resync":
+            self._sent_text = None
+            if self._last_text is not None:
+                self.render(self._last_text)
         elif kind == "rendered-async":
-            self.emit("rendered")
+            # Drawn diagrams change the layout: scroll sync re-aligns.
+            if msg.get("drawn"):
+                self.emit("rendered")
             self.emit("settled")
         elif kind == "scroll":
             self.emit("scrolled", float(msg.get("line", 0)))
