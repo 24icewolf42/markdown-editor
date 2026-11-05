@@ -93,11 +93,6 @@ jobs:
           bundle: ${{ steps.name.outputs.bundle }}
           manifest-path: build/flathub/io.github._24icewolf42.markdown-editor.yml
           cache-key: flatpak-builder-${{ hashFiles('packaging/flatpak/*') }}
-      - uses: actions/upload-artifact@v4
-        with:
-          name: flatpak-git-manifest
-          path: build/flathub/
-          if-no-files-found: error
 
   release:
     if: startsWith(github.ref, 'refs/tags/v')
