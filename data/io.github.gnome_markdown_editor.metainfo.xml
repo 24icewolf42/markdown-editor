@@ -21,6 +21,16 @@
   </developer>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.3.0" date="2026-11-05">
+      <description>
+        <p>Releases now ship download artifacts.</p>
+        <ul>
+          <li>Flatpak bundle: self-contained on the GNOME 51 runtime, with spell checking.</li>
+          <li>AppImage: small; runs on GNOME 49 or newer desktops using the system libraries.</li>
+          <li>Spell checking is optional when libspelling is not installed.</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.2.0" date="2026-11-05">
       <description>
         <p>Large documents edit and scroll smoothly; changelog sections are folded by default.</p>

@@ -1,7 +1,7 @@
 {
   "name": "gnome-markdown-editor-preview",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Preview renderer bundle for gnome-markdown-editor (built into ../gnome_markdown_editor/web/vendor)",
   "scripts": {
     "build": "node build.mjs"
