@@ -49,15 +49,15 @@
   <screenshots>
     <screenshot type="default">
       <caption>The editor with the live preview</caption>
-      <image>https://raw.githubusercontent.com/24icewolf42/markdown-editor/v0.4.1/docs/screenshot-light.png</image>
+      <image>https://raw.githubusercontent.com/24icewolf42/markdown-editor/v0.4.2/docs/screenshot-light.png</image>
     </screenshot>
     <screenshot>
       <caption>Dark style</caption>
-      <image>https://raw.githubusercontent.com/24icewolf42/markdown-editor/v0.4.1/docs/screenshot-dark.png</image>
+      <image>https://raw.githubusercontent.com/24icewolf42/markdown-editor/v0.4.2/docs/screenshot-dark.png</image>
     </screenshot>
     <screenshot>
       <caption>A Marp slide deck</caption>
-      <image>https://raw.githubusercontent.com/24icewolf42/markdown-editor/v0.4.1/docs/screenshot-marp.png</image>
+      <image>https://raw.githubusercontent.com/24icewolf42/markdown-editor/v0.4.2/docs/screenshot-marp.png</image>
     </screenshot>
   </screenshots>
   <keywords>
@@ -68,6 +68,15 @@
     <keyword>slides</keyword>
   </keywords>
   <releases>
+    <release version="0.4.2" date="2026-11-06">
+      <description>
+        <p>Updates without visiting GitHub.</p>
+        <ul>
+          <li>The Flatpak is available from the signed Innovyria repository and updates through GNOME Software and flatpak update; the single-file bundle sets that repository up as its update source.</li>
+          <li>The AppImage carries update information for AppImageUpdate and Gear Lever.</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.4.1" date="2026-11-05">
       <description>
         <p>License text and a Flatpak built from source.</p>
