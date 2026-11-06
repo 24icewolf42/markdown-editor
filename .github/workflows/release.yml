@@ -100,15 +100,14 @@ jobs:
           branch: stable
           build-bundle: false
           upload-artifact: false
-      # The bundle names the Innovyria repository (innovyria/flatpak, which
-      # imports it from this release), so installing it sets up updates.
-      - name: Bundle with update source
+      # Unsigned: a bundle naming the signed Innovyria repository would need
+      # signed commits to install. innovyria/flatpak imports this bundle, signs
+      # it and offers a self-updating bundle of its own.
+      - name: Bundle
         run: |
           mkdir -p dist
           flatpak build-bundle repo "dist/${{ steps.name.outputs.bundle }}" io.github._24icewolf42.markdown-editor stable \
-            --repo-url=https://innovyria.github.io/flatpak/repo/ \
-            --runtime-repo=https://dl.flathub.org/repo/flathub.flatpakrepo \
-            --gpg-keys=packaging/flatpak/innovyria.gpg
+            --runtime-repo=https://dl.flathub.org/repo/flathub.flatpakrepo
       - uses: actions/upload-artifact@v4
         with:
           name: flatpak
@@ -145,7 +144,7 @@ jobs:
           print()
           print("**Downloads**")
           print("- Recommended: `flatpak install --user https://innovyria.github.io/flatpak/io.github._24icewolf42.markdown-editor.flatpakref` (signed repository, updates through `flatpak update`; the repository imports this release within the hour).")
-          print("- `.flatpak`: the same app as one file. `flatpak install --user <file>`; it adds the Innovyria repository for updates and pulls the GNOME 51 runtime from Flathub.")
+          print("- `.flatpak`: the same app as one file, without updates. `flatpak install --user <file>`; pulls the GNOME 51 runtime from Flathub. A self-updating single file: https://innovyria.github.io/flatpak/bundles/io.github._24icewolf42.markdown-editor.flatpak")
           print("- `.AppImage`: small; uses the system's GNOME libraries and needs a GNOME 49 or newer desktop "
                 "(GTK 4.12+, libadwaita 1.8+, GtkSourceView 5, WebKitGTK 6.0, PyGObject). `chmod +x` it after downloading.")
           PY

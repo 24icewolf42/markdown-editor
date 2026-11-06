@@ -77,8 +77,7 @@ flatpak:
 	flatpak-builder --user --force-clean --default-branch=stable --repo=build/flatpak-repo build/flatpak packaging/flatpak/$(APP_ID).yml
 	mkdir -p dist
 	flatpak build-bundle build/flatpak-repo dist/markdown-editor-$(VERSION)-x86_64.flatpak $(APP_ID) stable \
-	  --repo-url=https://innovyria.github.io/flatpak/repo/ --runtime-repo=https://dl.flathub.org/repo/flathub.flatpakrepo \
-	  --gpg-keys=packaging/flatpak/innovyria.gpg
+	  --runtime-repo=https://dl.flathub.org/repo/flathub.flatpakrepo
 
 # Offline npm sources for the Flatpak build of the preview bundle; run after
 # changing web-src/package-lock.json (needs uv and network).

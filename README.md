@@ -127,8 +127,10 @@ of this project within the hour; the GNOME 51 runtime comes from Flathub.
 Each [GitHub release](https://github.com/24icewolf42/markdown-editor/releases) also carries:
 
 - **`markdown-editor-<version>-x86_64.flatpak`** — the same app as a single file:
-  `flatpak install --user markdown-editor-<version>-x86_64.flatpak`. Installing it also adds the
-  Innovyria repository as its update source, so later versions arrive through `flatpak update`.
+  `flatpak install --user markdown-editor-<version>-x86_64.flatpak`. It does not update itself.
+  For a single file that does, take
+  [the repository's bundle](https://innovyria.github.io/flatpak/bundles/io.github._24icewolf42.markdown-editor.flatpak):
+  it installs offline and then updates from the Innovyria repository.
 - **`markdown-editor-<version>-x86_64.AppImage`** — a few MB; uses the system's GNOME libraries,
   so it needs a GNOME 49 or newer desktop (GTK 4.12+, libadwaita 1.8+, GtkSourceView 5, WebKitGTK 6.0,
   PyGObject; libspelling optional). `chmod +x` it and run. On a system without them it says what to

@@ -72,7 +72,7 @@
       <description>
         <p>Updates without visiting GitHub.</p>
         <ul>
-          <li>The Flatpak is available from the signed Innovyria repository and updates through GNOME Software and flatpak update; the single-file bundle sets that repository up as its update source.</li>
+          <li>The Flatpak is available from the signed Innovyria repository and updates through GNOME Software and flatpak update; its single-file bundle sets that repository up as the update source.</li>
           <li>The AppImage carries update information for AppImageUpdate and Gear Lever.</li>
         </ul>
       </description>
