@@ -112,21 +112,34 @@ web fonts (`gaia`, `uncover`) fall back to local fonts in the preview; an export
 
 ## Download
 
-Each [GitHub release](https://github.com/24icewolf42/markdown-editor/releases) carries:
+**Recommended: the Innovyria Flatpak repository.** Open
+[io.github._24icewolf42.markdown-editor.flatpakref](https://innovyria.github.io/flatpak/io.github._24icewolf42.markdown-editor.flatpakref)
+to install it with GNOME Software, or run:
 
-- **`markdown-editor-<version>-x86_64.flatpak`** (recommended) — self-contained on the GNOME 51
-  runtime: `flatpak install --user markdown-editor-<version>-x86_64.flatpak` (the runtime comes
-  from Flathub).
+```sh
+flatpak install --user https://innovyria.github.io/flatpak/io.github._24icewolf42.markdown-editor.flatpakref
+```
+
+Updates then arrive through `flatpak update` and GNOME Software. The repository
+([innovyria/flatpak](https://github.com/innovyria/flatpak)) is signed and imports each release
+of this project within the hour; the GNOME 51 runtime comes from Flathub.
+
+Each [GitHub release](https://github.com/24icewolf42/markdown-editor/releases) also carries:
+
+- **`markdown-editor-<version>-x86_64.flatpak`** — the same app as a single file:
+  `flatpak install --user markdown-editor-<version>-x86_64.flatpak`. Installing it also adds the
+  Innovyria repository as its update source, so later versions arrive through `flatpak update`.
 - **`markdown-editor-<version>-x86_64.AppImage`** — a few MB; uses the system's GNOME libraries,
   so it needs a GNOME 49 or newer desktop (GTK 4.12+, libadwaita 1.8+, GtkSourceView 5, WebKitGTK 6.0,
   PyGObject; libspelling optional). `chmod +x` it and run. On a system without them it says what to
   install. WebKitGTK cannot be relocated into an AppImage, which is why the self-contained build is
-  the Flatpak.
+  the Flatpak. The AppImage carries update information: AppImageUpdate or Gear Lever download only
+  the changed parts of a new release (the `.zsync` file next to it).
 
   The Flatpak can read and write the home folder, because links between documents, relative images
   and reloading on change need the files next to the opened one. Files elsewhere open through the
   file chooser.
-- `SHA256SUMS` for both.
+- `SHA256SUMS` for all files.
 
 Releases are built by `.github/workflows/release.yml`: every push builds both artifacts after the
 tests; pushing a tag `vX.Y.Z` that matches `markdown_editor.VERSION` and has a `<release>` entry

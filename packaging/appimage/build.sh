@@ -41,6 +41,10 @@ cp "$ROOT/markdown_editor/data/icons/hicolor/256x256/apps/$APP_ID.png" "$APPDIR/
 cp "$APPDIR/$APP_ID.png" "$APPDIR/.DirIcon"
 
 # appimagetool is itself an AppImage; extract-and-run avoids needing FUSE.
-APPIMAGE_EXTRACT_AND_RUN=1 ARCH="$ARCH" "$BUILD/appimagetool" --no-appstream \
-    --runtime-file "$BUILD/runtime" "$APPDIR" "$OUT"
+# Update information lets AppImageUpdate and Gear Lever fetch new releases
+# (delta downloads via the .zsync file, which needs zsyncmake at build time).
+UPDATE_INFO="gh-releases-zsync|24icewolf42|markdown-editor|latest|markdown-editor-*-$ARCH.AppImage.zsync"
+command -v zsyncmake >/dev/null || echo "zsyncmake not found: no .zsync file is generated" >&2
+(cd "$ROOT/dist" && APPIMAGE_EXTRACT_AND_RUN=1 ARCH="$ARCH" "$BUILD/appimagetool" --no-appstream \
+    --runtime-file "$BUILD/runtime" --updateinformation "$UPDATE_INFO" "$APPDIR" "$OUT")
 echo "$OUT"

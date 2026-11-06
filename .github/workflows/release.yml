@@ -48,11 +48,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Build AppImage
-        run: packaging/appimage/build.sh
+        run: |
+          sudo apt-get install -y --no-install-recommends zsync
+          packaging/appimage/build.sh
+          test -s dist/*.AppImage.zsync
       - uses: actions/upload-artifact@v4
         with:
           name: appimage
-          path: dist/*.AppImage
+          path: |
+            dist/*.AppImage
+            dist/*.AppImage.zsync
           if-no-files-found: error
 
   flatpak:
@@ -90,9 +95,25 @@ jobs:
       # Builds the pushed commit as Flathub's builders would, Node.js bundle included.
       - uses: flathub-infra/flatpak-github-actions/flatpak-builder@master
         with:
-          bundle: ${{ steps.name.outputs.bundle }}
           manifest-path: build/flathub/io.github._24icewolf42.markdown-editor.yml
           cache-key: flatpak-builder-${{ hashFiles('packaging/flatpak/*') }}
+          branch: stable
+          build-bundle: false
+          upload-artifact: false
+      # The bundle names the Innovyria repository (innovyria/flatpak, which
+      # imports it from this release), so installing it sets up updates.
+      - name: Bundle with update source
+        run: |
+          mkdir -p dist
+          flatpak build-bundle repo "dist/${{ steps.name.outputs.bundle }}" io.github._24icewolf42.markdown-editor stable \
+            --repo-url=https://innovyria.github.io/flatpak/repo/ \
+            --runtime-repo=https://dl.flathub.org/repo/flathub.flatpakrepo \
+            --gpg-keys=packaging/flatpak/innovyria.gpg
+      - uses: actions/upload-artifact@v4
+        with:
+          name: flatpak
+          path: dist/*.flatpak
+          if-no-files-found: error
 
   release:
     if: startsWith(github.ref, 'refs/tags/v')
@@ -123,7 +144,8 @@ jobs:
                   print(f"- {text(el)}")
           print()
           print("**Downloads**")
-          print("- `.flatpak` (recommended): self-contained. `flatpak install --user <file>`; pulls the GNOME 51 runtime from Flathub.")
+          print("- Recommended: `flatpak install --user https://innovyria.github.io/flatpak/io.github._24icewolf42.markdown-editor.flatpakref` (signed repository, updates through `flatpak update`; the repository imports this release within the hour).")
+          print("- `.flatpak`: the same app as one file. `flatpak install --user <file>`; it adds the Innovyria repository for updates and pulls the GNOME 51 runtime from Flathub.")
           print("- `.AppImage`: small; uses the system's GNOME libraries and needs a GNOME 49 or newer desktop "
                 "(GTK 4.12+, libadwaita 1.8+, GtkSourceView 5, WebKitGTK 6.0, PyGObject). `chmod +x` it after downloading.")
           PY
